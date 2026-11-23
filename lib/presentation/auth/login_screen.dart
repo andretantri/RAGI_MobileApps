@@ -718,7 +718,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                                     ),
                                                     const SizedBox(height: 2),
                                                     Text(
-                                                      'Versi 1.1.0 • Build 24',
+                                                      'Versi 1.1.0 • Build 25',
                                                       style: GoogleFonts.inter(
                                                         fontSize: 10,
                                                         color: const Color(0xFF94A3B8),
