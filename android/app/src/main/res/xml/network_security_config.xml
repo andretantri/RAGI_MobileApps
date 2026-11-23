@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Hanya izinkan cleartext untuk localhost pada debug build -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">api-ragi-indonusa.poltekindonusa.ac.id</domain>
+    </domain-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+    <!-- Debug override: izinkan localhost -->
+    <debug-overrides>
+        <trust-anchors>
+            <certificates src="user" />
+        </trust-anchors>
+    </debug-overrides>
+</network-security-config>

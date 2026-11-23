@@ -1,0 +1,65 @@
+name: myinu_staff
+description: "myInU Staff — Aplikasi mobile untuk Dosen & Staff kampus"
+publish_to: 'none'
+
+version: 1.1.0+24
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+  # State management
+  flutter_riverpod: ^2.5.1
+
+  # Navigation
+  go_router: ^14.6.2
+
+  # HTTP
+  dio: ^5.7.0
+
+  # Storage
+  flutter_secure_storage: ^9.2.2
+  shared_preferences: ^2.3.3
+
+  # UI
+  google_fonts: ^6.2.1
+  shimmer: ^3.0.0
+  cached_network_image: ^3.4.1
+  fl_chart: ^0.69.0
+
+  # QR / Camera scanner
+  mobile_scanner: ^5.2.3
+
+  # Utils
+  intl: ^0.19.0
+  timeago: ^3.7.0
+  geolocator: ^14.0.2
+  animations: ^2.2.0
+  camera: ^0.12.2
+  web: ^1.1.1
+  image_picker: ^1.2.4
+  file_picker: ^10.3.0
+  flutter_local_notifications: ^23.0.3
+  flutter_jailbreak_detection: ^1.10.0
+  qr_flutter: ^4.1.0
+  permission_handler: ^13.0.2
+  google_mlkit_face_detection: ^1.0.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    - assets/images/background.jpeg
+    - assets/images/logo_indonusa.png
+    - assets/images/logo.png
+    - assets/icons/

@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>myIn-U – Splash Loading</title>
+<style>
+:root{--bg1:#ffffff;--bg2:#e9f0fb;--ink:#0b2a5b;--muted:#6b7a99;--track:#d9e2f2;--accent:#0b52b3;color-scheme:light dark;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg1:#142039;--bg2:#0a101e;--ink:#eaf1ff;--muted:#8fa0c4;--track:#24324f;--accent:#5b9bff}}
+:root[data-theme="dark"]{--bg1:#142039;--bg2:#0a101e;--ink:#eaf1ff;--muted:#8fa0c4;--track:#24324f;--accent:#5b9bff}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+html,body{height:100%;margin:0}
+body{background:var(--bg2);color:var(--ink);font-family:"Poppins",system-ui,-apple-system,"Segoe UI",sans-serif;overflow:hidden}
+#splash{position:fixed;inset:0;background:radial-gradient(ellipse at 50% 42%,var(--bg1),var(--bg2) 75%);transition:opacity .7s ease,visibility .7s;z-index:5}
+#splash.hide{opacity:0;visibility:hidden}
+#c{position:absolute;inset:0;width:100%;height:100%;display:block}
+.bar{position:absolute;left:0;right:0;bottom:calc(9% + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;align-items:center;gap:10px}
+.track{width:min(240px,56vw);height:5px;border-radius:99px;background:var(--track);overflow:hidden}
+#fill{display:block;height:100%;width:0;border-radius:99px;background:var(--accent)}
+#pct{font-size:12px;letter-spacing:.08em;color:var(--muted)}
+main{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;padding:24px}
+main h1{margin:0;font-size:clamp(22px,5vw,32px)}
+main p{margin:0;color:var(--muted)}
+button{font:inherit;font-size:14px;padding:10px 20px;border-radius:99px;border:0;background:var(--accent);color:#fff;cursor:pointer}
+</style>
+</head>
+<body>
+<main id="app">
+  <h1>Aplikasi siap digunakan</h1>
+  <p>Ini contoh halaman utama setelah splash selesai.</p>
+  <button id="replay">Putar ulang splash</button>
+</main>
+
+<div id="splash">
+  <canvas id="c"></canvas>
+  <div class="bar"><div class="track"><i id="fill"></i></div><span id="pct">Memuat… 0%</span></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ============ KONFIGURASI ============ */
+const LOAD_MS = 6500;   // simulasi lama loading. Ganti dengan progres asli aplikasi Anda.
+const CYCLE   = 5.2;    // durasi satu siklus animasi (detik)
+const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+const BLUE = dark ? 0x5b9bff : 0x0b52b3, RED = 0xf83734, ORANGE = 0xf9a516;
+
+/* ============ UTIL ============ */
+const clamp=(x,a=0,b=1)=>Math.min(b,Math.max(a,x));
+const lerp=(a,b,t)=>a+(b-a)*t;
+const easeOutCubic=t=>1-Math.pow(1-t,3);
+const easeInCubic=t=>t*t*t;
+const easeInOutCubic=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+const easeOutBack=t=>{const c1=1.9,c3=c1+1;return 1+c3*Math.pow(t-1,3)+c1*Math.pow(t-1,2)};
+const rnd=(a,b)=>{const s=Math.sin(a*12.9898+b*78.233)*43758.5453;return (s-Math.floor(s))*2-1};
+
+/* ============ BENTUK HURUF (koordinat piksel dari logo PNG) ============ */
+const line=(a,b)=>{const n=Math.max(1,Math.ceil(Math.hypot(b[0]-a[0],b[1]-a[1])/5)),o=[];for(let i=0;i<=n;i++)o.push([lerp(a[0],b[0],i/n),lerp(a[1],b[1],i/n)]);return o};
+const arc=(cx,cy,rx,ry,a0,a1)=>{const n=Math.ceil(Math.abs(a1-a0)/4),o=[];for(let i=0;i<=n;i++){const t=(lerp(a0,a1,i/n))*Math.PI/180;o.push([cx+rx*Math.cos(t),cy+ry*Math.sin(t)])}return o};
+const cubic=(p0,p1,p2,p3)=>{const o=[];for(let i=0;i<=24;i++){const t=i/24,u=1-t;o.push([u*u*u*p0[0]+3*u*u*t*p1[0]+3*u*t*t*p2[0]+t*t*t*p3[0],u*u*u*p0[1]+3*u*u*t*p1[1]+3*u*t*t*p2[1]+t*t*t*p3[1]])}return o};
+const join=(...ps)=>ps.reduce((a,p)=>a.concat(a.length?p.slice(1):p),[]);
+
+const LETTERS=[
+ {color:BLUE,  strokes:[ // m
+   [line([246.5,541.5],[246.5,418.5]),65],[arc(298,455,51.5,42,180,360),54],
+   [line([349.5,541.5],[349.5,455]),65],[arc(400,455,51,42,180,360),54],[line([451,541.5],[451,455]),65]]},
+ {color:BLUE,  strokes:[ // y
+   [line([519,417],[572,540]),64],
+   [join(line([632,417],[566,556]),cubic([566,556],[549,592],[526,607],[499,607])),64]]},
+ {color:BLUE,  strokes:[[line([709.5,539.5],[709.5,335.5]),73]]}, // I
+ {color:RED,   strokes:[ // n
+   [line([794.5,540],[794.5,440]),71],[arc(857.5,440,63,48,180,360),70],[line([920.5,540],[920.5,440]),73]]},
+ {color:ORANGE,strokes:[[line([1000,467.5],[1055,467.5]),56]]}, // -
+ {color:BLUE,  strokes:[[join(line([1136,356],[1136,477]),arc(1210.75,477,74.75,75,180,0),line([1285.5,477],[1285.5,356])),76]]} // U
+];
+const OFFS=[[-110,-160],[50,170],[-30,-190],[70,165],[130,-170],[100,-150]];
+const ROTS=[-.9,.8,-.6,.9,-1.2,.7];
+
+/* ============ THREE.JS ============ */
+const canvas=document.getElementById('c');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio||1,2));
+const scene=new THREE.Scene();
+const cam=new THREE.OrthographicCamera(-1,1,1,-1,-10,10);
+cam.position.z=5;
+
+class Stroke{
+  constructor(pts,w,color){
+    this.w=w;this.pts=pts;this.cum=[0];
+    for(let i=1;i<pts.length;i++)this.cum.push(this.cum[i-1]+Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]));
+    this.L=this.cum[this.cum.length-1];
+    this.pos=new Float32Array(((pts.length+2)*18+2*16*9));
+    this.geo=new THREE.BufferGeometry();
+    this.geo.setAttribute('position',new THREE.BufferAttribute(this.pos,3));
+    this.mesh=new THREE.Mesh(this.geo,new THREE.MeshBasicMaterial({color,side:THREE.DoubleSide}));
+    this.mesh.frustumCulled=false;
+    this.geo.setDrawRange(0,0);
+  }
+  at(s){
+    s=clamp(s,0,this.L);let i=1;
+    while(i<this.cum.length-1&&this.cum[i]<s)i++;
+    const t=(s-this.cum[i-1])/((this.cum[i]-this.cum[i-1])||1),a=this.pts[i-1],b=this.pts[i];
+    return [lerp(a[0],b[0],t),lerp(a[1],b[1],t)];
+  }
+  update(a,b,wf){
+    const h=this.w*wf/2;
+    if(h<.05){this.geo.setDrawRange(0,0);return}
+    const s0=a*this.L,s1=b*this.L,P=[this.at(s0)],p=this.pos;let n=0;
+    for(let i=0;i<this.pts.length;i++){const c=this.cum[i];if(c>s0+.01&&c<s1-.01)P.push(this.pts[i])}
+    if(s1-s0>.5)P.push(this.at(s1));
+    const v=(x,y)=>{p[n++]=x;p[n++]=y;p[n++]=0};
+    for(let i=0;i<P.length-1;i++){
+      const A=P[i],B=P[i+1],dx=B[0]-A[0],dy=B[1]-A[1],l=Math.hypot(dx,dy)||1,nx=-dy/l*h,ny=dx/l*h;
+      v(A[0]+nx,A[1]+ny);v(A[0]-nx,A[1]-ny);v(B[0]+nx,B[1]+ny);
+      v(A[0]-nx,A[1]-ny);v(B[0]-nx,B[1]-ny);v(B[0]+nx,B[1]+ny);
+    }
+    const disc=c=>{for(let i=0;i<16;i++){const t0=i/16*6.2832,t1=(i+1)/16*6.2832;
+      v(c[0],c[1]);v(c[0]+Math.cos(t0)*h,c[1]+Math.sin(t0)*h);v(c[0]+Math.cos(t1)*h,c[1]+Math.sin(t1)*h)}};
+    disc(P[0]);if(P.length>1)disc(P[P.length-1]);
+    this.geo.attributes.position.needsUpdate=true;
+    this.geo.setDrawRange(0,n/3);
+  }
+}
+
+const OX=769,OY=470;
+const letters=LETTERS.map((def,i)=>{
+  let minx=1e9,maxx=-1e9,miny=1e9,maxy=-1e9;
+  def.strokes.forEach(([pts])=>pts.forEach(([x,y])=>{minx=Math.min(minx,x);maxx=Math.max(maxx,x);miny=Math.min(miny,y);maxy=Math.max(maxy,y)}));
+  const c=[(minx+maxx)/2,(miny+maxy)/2],group=new THREE.Group();
+  group.position.set(c[0]-OX,-(c[1]-OY),0);
+  const strokes=def.strokes.map(([pts,w],j)=>{
+    const s=new Stroke(pts.map(([x,y])=>[x-c[0],-(y-c[1])]),w,def.color);
+    s.off=[rnd(i,j)*50,rnd(j,i+3)*50];
+    group.add(s.mesh);return s;
+  });
+  scene.add(group);
+  return {group,strokes,home:group.position.clone()};
+});
+
+function setLetter(L,i,p,t){
+  const e1=clamp(p/.22),e2=clamp((p-.22)/.3),e3=clamp((p-.52)/.48);
+  const wf=e2>0?lerp(.3,1,easeOutCubic(e2)):.3*easeOutBack(e1);
+  const len=.22*easeOutCubic(e2),E=easeInOutCubic(e3),back=1-easeOutBack(e3);
+  const drift=(1-e3)*Math.sin(t*1.6+i)*10;
+  L.group.position.set(L.home.x+OFFS[i][0]*back+drift,L.home.y+OFFS[i][1]*back+drift*.6,0);
+  L.group.rotation.z=ROTS[i]*back;
+  if(p>=.999)L.group.position.y+=Math.sin(t*2.2+i*.7)*5; // gerak halus saat idle
+  L.strokes.forEach(s=>{
+    s.mesh.position.set(s.off[0]*back,s.off[1]*back,0);
+    s.update(lerp(.5-len/2,0,E),lerp(.5+len/2,1,E),p<=0?0:wf);
+  });
+}
+
+/* ============ LOOP & STATE ============ */
+const splash=document.getElementById('splash'),fill=document.getElementById('fill'),pct=document.getElementById('pct');
+let t0=performance.now(),finished=false,finishAt=0,running=true;
+
+function resize(){
+  const w=splash.clientWidth||innerWidth,h=splash.clientHeight||innerHeight,asp=w/h;
+  renderer.setSize(w,h,false);
+  const hw=Math.max(712,375*asp);
+  cam.left=-hw;cam.right=hw;cam.top=hw/asp;cam.bottom=-hw/asp;cam.updateProjectionMatrix();
+}
+addEventListener('resize',resize);resize();
+
+function frame(now){
+  if(!running)return;
+  requestAnimationFrame(frame);
+  const t=(now-t0)/1000,prog=easeInOutCubic(clamp((now-t0)/LOAD_MS));
+  const c=t%CYCLE;
+  if(!finished&&prog>=1&&c>2.4&&c<4.1){finished=true;finishAt=t}
+  letters.forEach((L,i)=>{
+    let p=1;
+    if(!finished){
+      const intro=clamp((c-.14*i)/1.5),out=clamp((c-4.3-.05*(5-i))/.65);
+      p=intro*(1-easeInCubic(out));
+    }
+    setLetter(L,i,p,t);
+  });
+  fill.style.width=(prog*100)+'%';
+  pct.textContent='Memuat… '+Math.round(prog*100)+'%';
+  renderer.render(scene,cam);
+  if(finished&&t-finishAt>.9){splash.classList.add('hide');running=false}
+}
+requestAnimationFrame(frame);
+
+/* Putar ulang (demo) */
+document.getElementById('replay').onclick=()=>{
+  splash.classList.remove('hide');finished=false;t0=performance.now();
+  if(!running){running=true;requestAnimationFrame(frame)}
+};
+</script>
+</body>
+</html>
