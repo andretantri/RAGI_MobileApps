@@ -287,7 +287,7 @@ class _AboutAppScreenState extends State<AboutAppScreen>
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            'Versi 1.1.0 (Build 25) • Ekosistem SIAKAD & SIMPEG Terpadu',
+                            'Versi 1.1.0 (Build 30) • Ekosistem SIAKAD & SIMPEG Terpadu',
                             style: TextStyle(
                               color: Colors.white.withValues(alpha: 0.85),
                               fontSize: 11.5,

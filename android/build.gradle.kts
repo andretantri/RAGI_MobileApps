@@ -3,6 +3,15 @@ allprojects {
         google()
         mavenCentral()
     }
+    configurations.all {
+        resolutionStrategy {
+            force("com.google.mlkit:barcode-scanning:17.3.0")
+            force("com.scottyab:rootbeer-lib:0.1.2")
+            dependencySubstitution {
+                substitute(module("com.github.scottyab:rootbeer")).using(module("com.scottyab:rootbeer-lib:0.1.2"))
+            }
+        }
+    }
 }
 
 val newBuildDir: Directory =
@@ -14,6 +23,15 @@ rootProject.layout.buildDirectory.value(newBuildDir)
 subprojects {
     val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
     project.layout.buildDirectory.value(newSubprojectBuildDir)
+    configurations.all {
+        resolutionStrategy {
+            force("com.google.mlkit:barcode-scanning:17.3.0")
+            force("com.scottyab:rootbeer-lib:0.1.2")
+            dependencySubstitution {
+                substitute(module("com.github.scottyab:rootbeer")).using(module("com.scottyab:rootbeer-lib:0.1.2"))
+            }
+        }
+    }
 }
 subprojects {
     project.evaluationDependsOn(":app")

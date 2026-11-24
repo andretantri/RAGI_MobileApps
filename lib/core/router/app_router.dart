@@ -17,6 +17,10 @@ import '../../presentation/profile/data_diri_screen.dart';
 import '../../presentation/features/module_feature_hub_screen.dart';
 import '../../presentation/features/mobile_feature_list_screen.dart';
 import '../../presentation/features/mobile_feature_form_screen.dart';
+import '../../presentation/features/mobile_staff_form_screen.dart';
+import '../../presentation/features/mobile_staff_detail_screen.dart';
+import '../../core/constants/mobile_feature_config.dart';
+import '../../core/models/mobile_feature_model.dart';
 import '../../presentation/schedule/teaching_schedule_screen.dart';
 import '../../presentation/siakad/grading/grading_classes_screen.dart';
 import '../../presentation/siakad/grading/class_grading_screen.dart';
@@ -41,6 +45,20 @@ class AppRouter {
   /// Gunakan satu instance GoRouter agar service notifikasi dan UI
   /// menavigasi router yang sama dengan MaterialApp.router.
   static final GoRouter router = _createRouter();
+
+  /// Form generik dipakai fitur lama; fitur self-service v1 baru memakai
+  /// [MobileStaffFormScreen] yang mengambil ID master secara dinamis.
+  static NoTransitionPage _formPage(String featureCode) {
+    final feature = AppMobileFeatures.findByCode(featureCode);
+    if (feature?.usesDedicatedForm ?? false) {
+      return NoTransitionPage(
+        child: MobileStaffFormScreen(featureCode: featureCode),
+      );
+    }
+    return NoTransitionPage(
+      child: MobileFeatureFormScreen(featureCode: featureCode),
+    );
+  }
 
   static GoRouter _createRouter() => GoRouter(
     navigatorKey: _rootKey,
@@ -84,10 +102,7 @@ class AppRouter {
                 end: 0.0,
               ).animate(curvedAnimation);
 
-              final fadeAnimation = Tween<double>(
-                begin: 0.0,
-                end: 1.0,
-              ).animate(
+              final fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
                 CurvedAnimation(
                   parent: animation,
                   curve: const Interval(0.0, 0.65, curve: Curves.easeOut),
@@ -100,11 +115,16 @@ class AppRouter {
                 builder: (context, _) {
                   return Transform.scale(
                     scale: scaleAnimation.value,
-                    alignment: const Alignment(0.0, 0.95), // Posisi tombol absen tengah bawah
+                    alignment: const Alignment(
+                      0.0,
+                      0.95,
+                    ), // Posisi tombol absen tengah bawah
                     child: FadeTransition(
                       opacity: fadeAnimation,
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(radiusAnimation.value),
+                        borderRadius: BorderRadius.circular(
+                          radiusAnimation.value,
+                        ),
                         child: child,
                       ),
                     ),
@@ -176,8 +196,7 @@ class AppRouter {
         path: '/siakad/advising/krs/:krsId',
         parentNavigatorKey: _rootKey,
         pageBuilder: (ctx, state) {
-          final krsId =
-              int.tryParse(state.pathParameters['krsId'] ?? '') ?? 1;
+          final krsId = int.tryParse(state.pathParameters['krsId'] ?? '') ?? 1;
           return NoTransitionPage(child: KrsApprovalScreen(krsId: krsId));
         },
       ),
@@ -188,7 +207,8 @@ class AppRouter {
           final mhsId =
               int.tryParse(state.pathParameters['mahasiswaId'] ?? '') ?? 1;
           return NoTransitionPage(
-              child: ConsultationNotesScreen(mahasiswaId: mhsId));
+            child: ConsultationNotesScreen(mahasiswaId: mhsId),
+          );
         },
       ),
       GoRoute(
@@ -203,8 +223,7 @@ class AppRouter {
         pageBuilder: (ctx, state) {
           final kelasId =
               int.tryParse(state.pathParameters['kelasId'] ?? '') ?? 13;
-          return NoTransitionPage(
-              child: ClassJournalScreen(kelasId: kelasId));
+          return NoTransitionPage(child: ClassJournalScreen(kelasId: kelasId));
         },
       ),
       GoRoute(
@@ -214,7 +233,8 @@ class AppRouter {
           final pertemuanId =
               int.tryParse(state.pathParameters['pertemuanId'] ?? '') ?? 1;
           return NoTransitionPage(
-              child: ClassSessionScreen(pertemuanId: pertemuanId));
+            child: ClassSessionScreen(pertemuanId: pertemuanId),
+          );
         },
       ),
       GoRoute(
@@ -280,9 +300,25 @@ class AppRouter {
       GoRoute(
         path: '/features/:featureCode/form',
         parentNavigatorKey: _rootKey,
+        pageBuilder: (ctx, state) =>
+            _formPage(state.pathParameters['featureCode'] ?? ''),
+      ),
+      GoRoute(
+        path: '/mobile-staff/form/:featureCode',
+        parentNavigatorKey: _rootKey,
+        pageBuilder: (ctx, state) =>
+            _formPage(state.pathParameters['featureCode'] ?? ''),
+      ),
+      GoRoute(
+        path: '/mobile-staff/detail/:featureCode/:id',
+        parentNavigatorKey: _rootKey,
         pageBuilder: (ctx, state) => NoTransitionPage(
-          child: MobileFeatureFormScreen(
+          child: MobileStaffDetailScreen(
             featureCode: state.pathParameters['featureCode'] ?? '',
+            id: state.pathParameters['id'] ?? '',
+            initialItem: state.extra is MobileFeatureItem
+                ? state.extra as MobileFeatureItem
+                : null,
           ),
         ),
       ),
@@ -294,7 +330,10 @@ class AppRouter {
           final query = state.uri.queryParameters;
           return NoTransitionPage(
             child: UnderConstructionScreen(
-              title: extra['title']?.toString() ?? query['title'] ?? 'Layanan Modul',
+              title:
+                  extra['title']?.toString() ??
+                  query['title'] ??
+                  'Layanan Modul',
               subtitle: extra['subtitle']?.toString() ?? query['subtitle'],
               category: extra['category']?.toString() ?? query['category'],
               icon: extra['icon'] as IconData?,
@@ -309,19 +348,23 @@ class AppRouter {
         routes: [
           GoRoute(
             path: '/home',
-            pageBuilder: (ctx, state) => const NoTransitionPage(child: HomeScreen()),
+            pageBuilder: (ctx, state) =>
+                const NoTransitionPage(child: HomeScreen()),
           ),
           GoRoute(
             path: '/modules',
-            pageBuilder: (ctx, state) => const NoTransitionPage(child: ModulesScreen()),
+            pageBuilder: (ctx, state) =>
+                const NoTransitionPage(child: ModulesScreen()),
           ),
           GoRoute(
             path: '/notifications',
-            pageBuilder: (ctx, state) => const NoTransitionPage(child: NotificationsScreen()),
+            pageBuilder: (ctx, state) =>
+                const NoTransitionPage(child: NotificationsScreen()),
           ),
           GoRoute(
             path: '/profile',
-            pageBuilder: (ctx, state) => const NoTransitionPage(child: ProfileScreen()),
+            pageBuilder: (ctx, state) =>
+                const NoTransitionPage(child: ProfileScreen()),
           ),
         ],
       ),

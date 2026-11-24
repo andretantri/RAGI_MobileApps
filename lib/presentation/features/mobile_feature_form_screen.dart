@@ -37,7 +37,8 @@ class _MobileFeatureFormScreenState
   MobileFeatureItem? _result;
   bool _submitting = false;
 
-  MobileFeature? get _feature => AppMobileFeatures.findByCode(widget.featureCode);
+  MobileFeature? get _feature =>
+      AppMobileFeatures.findByCode(widget.featureCode);
 
   @override
   void initState() {
@@ -45,30 +46,34 @@ class _MobileFeatureFormScreenState
     final type = _feature?.formType ?? MobileFeatureFormType.none;
     final defaults = switch (type) {
       MobileFeatureFormType.proposalSippm => {
-          'judul': '',
-          'abstrak': '',
-          'rumpun_ilmu': '',
-          'target_tkt': '',
-          'anggaran_diajukan': '',
-        },
+        'judul': '',
+        'abstrak': '',
+        'rumpun_ilmu': '',
+        'target_tkt': '',
+        'anggaran_diajukan': '',
+      },
       MobileFeatureFormType.pengajuanSikeu => {
-          'judul_pengajuan': '',
-          'deskripsi': '',
-          'nominal_diajukan': '',
-          'nama_bank_penerima': '',
-          'nomor_rekening_penerima': '',
-          'nama_rekening_penerima': '',
-          'unit_kas_id': '',
-        },
+        'judul_pengajuan': '',
+        'deskripsi': '',
+        'nominal_diajukan': '',
+        'nama_bank_penerima': '',
+        'nomor_rekening_penerima': '',
+        'nama_rekening_penerima': '',
+        'unit_kas_id': '',
+      },
       MobileFeatureFormType.tiketSinapra => {
-          'judul': '',
-          'deskripsi_kerusakan': '',
-          'ruangan_id': '',
-          'aset_id': '',
-        },
+        'judul': '',
+        'deskripsi_kerusakan': '',
+        'ruangan_id': '',
+        'aset_id': '',
+      },
       MobileFeatureFormType.referralSpmb ||
-      MobileFeatureFormType.none =>
-        <String, String>{},
+      MobileFeatureFormType.cutiSimpeg ||
+      MobileFeatureFormType.izinKerjaSimpeg ||
+      MobileFeatureFormType.suratTugasSimpeg ||
+      MobileFeatureFormType.skPegawaiSimpeg ||
+      MobileFeatureFormType.eFileArsip ||
+      MobileFeatureFormType.none => <String, String>{},
     };
     for (final entry in defaults.entries) {
       _controllers[entry.key] = TextEditingController(text: entry.value);
@@ -151,7 +156,9 @@ class _MobileFeatureFormScreenState
 
   void _showMessage(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Widget _field(
@@ -204,8 +211,8 @@ class _MobileFeatureFormScreenState
             child: Text(
               _file == null
                   ? (pdfOnly
-                      ? 'Berkas proposal PDF *'
-                      : 'Lampiran opsional (PDF/JPG/PNG)')
+                        ? 'Berkas proposal PDF *'
+                        : 'Lampiran opsional (PDF/JPG/PNG)')
                   : _file!.name,
               style: AppTextStyles.caption.copyWith(
                 color: _file == null
@@ -270,13 +277,14 @@ class _MobileFeatureFormScreenState
                             if (context.canPop()) {
                               context.pop();
                             } else {
-                              context.go(
-                                '/features/${feature.code}',
-                              );
+                              context.go('/features/${feature.code}');
                             }
                           },
-                          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                              color: Colors.white, size: 20),
+                          icon: const Icon(
+                            Icons.arrow_back_ios_new_rounded,
+                            color: Colors.white,
+                            size: 20,
+                          ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -359,20 +367,27 @@ class _MobileFeatureFormScreenState
                               children: [
                                 Text(
                                   'Master skema/periode belum dapat dimuat.',
-                                  style: AppTextStyles.caption
-                                      .copyWith(color: AppColors.error),
+                                  style: AppTextStyles.caption.copyWith(
+                                    color: AppColors.error,
+                                  ),
                                 ),
                                 TextButton.icon(
                                   onPressed: () =>
                                       ref.invalidate(sippmLookupsProvider),
-                                  icon: const Icon(Icons.refresh_rounded,
-                                      size: 16),
+                                  icon: const Icon(
+                                    Icons.refresh_rounded,
+                                    size: 16,
+                                  ),
                                   label: const Text('Muat Ulang'),
                                 ),
                               ],
                             ),
                           ),
-                        _field('target_tkt', 'Target TKT (1-9)', numbersOnly: true),
+                        _field(
+                          'target_tkt',
+                          'Target TKT (1-9)',
+                          numbersOnly: true,
+                        ),
                         _field(
                           'anggaran_diajukan',
                           'Anggaran diajukan (Rp)',
@@ -383,8 +398,11 @@ class _MobileFeatureFormScreenState
                       ],
                       if (feature.formType ==
                           MobileFeatureFormType.pengajuanSikeu) ...[
-                        _field('judul_pengajuan', 'Judul pengajuan',
-                            required: true),
+                        _field(
+                          'judul_pengajuan',
+                          'Judul pengajuan',
+                          required: true,
+                        ),
                         _field('deskripsi', 'Deskripsi', maxLines: 3),
                         _dropdown(
                           label: 'Jenis pengajuan',
@@ -407,19 +425,31 @@ class _MobileFeatureFormScreenState
                         ),
                         _field('nama_bank_penerima', 'Bank penerima'),
                         _field('nomor_rekening_penerima', 'Nomor rekening'),
-                        _field('nama_rekening_penerima', 'Nama pemegang rekening'),
+                        _field(
+                          'nama_rekening_penerima',
+                          'Nama pemegang rekening',
+                        ),
                         _field('unit_kas_id', 'Unit kas ID', numbersOnly: true),
                         _attachmentCard(pdfOnly: false),
                       ],
                       if (feature.formType ==
                           MobileFeatureFormType.tiketSinapra) ...[
                         _field('judul', 'Judul kerusakan', required: true),
-                        _field('deskripsi_kerusakan', 'Deskripsi kerusakan',
-                            required: true, maxLines: 4),
+                        _field(
+                          'deskripsi_kerusakan',
+                          'Deskripsi kerusakan',
+                          required: true,
+                          maxLines: 4,
+                        ),
                         _dropdown(
                           label: 'Prioritas',
                           value: _prioritas,
-                          items: const ['rendah', 'sedang', 'tinggi', 'darurat'],
+                          items: const [
+                            'rendah',
+                            'sedang',
+                            'tinggi',
+                            'darurat',
+                          ],
                           onChanged: (value) =>
                               setState(() => _prioritas = value),
                         ),
@@ -551,18 +581,17 @@ class _ResultCard extends StatelessWidget {
         children: [
           Text(
             item.title.isNotEmpty ? item.title : 'Data berhasil dibuat',
-            style: AppTextStyles.bodyMedium
-                .copyWith(fontWeight: FontWeight.w700),
+            style: AppTextStyles.bodyMedium.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
           ),
           if (item.referralCode.isNotEmpty) ...[
             const SizedBox(height: 6),
-            Text('Kode: ${item.referralCode}',
-                style: AppTextStyles.caption),
+            Text('Kode: ${item.referralCode}', style: AppTextStyles.caption),
           ],
           if (item.shareUrl.isNotEmpty) ...[
             const SizedBox(height: 4),
-            Text('Tautan: ${item.shareUrl}',
-                style: AppTextStyles.caption),
+            Text('Tautan: ${item.shareUrl}', style: AppTextStyles.caption),
             const SizedBox(height: 8),
             OutlinedButton.icon(
               onPressed: () {

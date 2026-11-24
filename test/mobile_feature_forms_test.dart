@@ -15,10 +15,18 @@ Widget _screen(Widget child) {
       sippmLookupsProvider.overrideWith(
         (ref) async => const SippmLookups(
           skema: [
-            SippmLookup(id: 1, name: 'Penelitian Dosen Pemula', subtitle: 'PDP'),
+            SippmLookup(
+              id: 1,
+              name: 'Penelitian Dosen Pemula',
+              subtitle: 'PDP',
+            ),
           ],
           periode: [
-            SippmLookup(id: 2, name: 'Hibah Gelombang I', subtitle: '2026/2027'),
+            SippmLookup(
+              id: 2,
+              name: 'Hibah Gelombang I',
+              subtitle: '2026/2027',
+            ),
           ],
         ),
       ),
@@ -49,7 +57,32 @@ void main() {
         AppMobileFeatures.findByCode('referral-spmb')?.submitEndpoint,
         '/mobile/staff/spmb/referral',
       );
-      expect(AppMobileFeatures.submittable.length, 4);
+      expect(
+        AppMobileFeatures.submittable.map((feature) => feature.code),
+        containsAll([
+          'proposal-hibah',
+          'pengajuan-sikeu',
+          'tiket-sinapra',
+          'referral-spmb',
+          'cuti',
+          'izin-kerja',
+          'surat-tugas',
+          'sk-pegawai',
+          'e-file',
+        ]),
+      );
+      expect(
+        AppMobileFeatures.findByCode('cuti')?.masterKeys,
+        contains('jenis_cuti'),
+      );
+      expect(
+        AppMobileFeatures.findByCode('payroll')?.downloadEndpoint,
+        '/mobile/staff/sikeu/payroll/{id}/slip',
+      );
+      expect(AppMobileFeatures.findByCode('e-file')?.usesDedicatedForm, isTrue);
+      expect(AppMobileFeatures.findByCode('kompetensi')?.queryParams, {
+        'jenis': 'sertifikasi',
+      });
     });
 
     test('payload proposal SIPPM memakai field kontrak', () {
@@ -115,6 +148,65 @@ void main() {
     });
   });
 
+  group('Payload self-service SIMPEG & e-file', () {
+    test('cuti dan izin memakai ID master dinamis dan field kontrak', () {
+      final cuti = MobileFeatureSubmission(
+        type: MobileFeatureFormType.cutiSimpeg,
+        values: {
+          'master_jenis_cuti_id': 12,
+          'tanggal_mulai': '2026-11-25',
+          'tanggal_selesai': '2026-11-27',
+          'jumlah_hari': 3,
+          'alasan': 'Keperluan keluarga',
+        },
+      );
+      expect(cuti.fileKey, 'file_pendukung');
+      expect(cuti.toJson()['master_jenis_cuti_id'], 12);
+      expect(cuti.toJson()['alasan'], 'Keperluan keluarga');
+
+      final izin = MobileFeatureSubmission(
+        type: MobileFeatureFormType.izinKerjaSimpeg,
+        values: {
+          'master_jenis_izin_id': 4,
+          'tanggal': '2026-11-25',
+          'jam_mulai': '08:00',
+          'jam_selesai': '12:00',
+          'alasan': 'Mengurus dokumen',
+        },
+      );
+      expect(izin.fileKey, 'file_bukti');
+      expect(izin.toJson()['master_jenis_izin_id'], 4);
+    });
+
+    test('surat tugas, SK, dan e-file memakai field kontrak', () {
+      final surat = MobileFeatureSubmission(
+        type: MobileFeatureFormType.suratTugasSimpeg,
+        values: {
+          'kategori_kegiatan_id': 2,
+          'jenis_transportasi_id': 3,
+          'nama_kegiatan': 'Workshop',
+          'estimasi_biaya': 'Rp 1.250.000',
+        },
+      );
+      expect(surat.toJson()['kategori_kegiatan_id'], 2);
+      expect(surat.toJson()['estimasi_biaya'], 1250000);
+
+      final sk = MobileFeatureSubmission(
+        type: MobileFeatureFormType.skPegawaiSimpeg,
+        values: {'kategori_sk_id': 5, 'nomor_sk': 'SK-1/2026'},
+      );
+      expect(sk.fileKey, 'file_sk');
+      expect(sk.toJson()['kategori_sk_id'], 5);
+
+      final efile = MobileFeatureSubmission(
+        type: MobileFeatureFormType.eFileArsip,
+        values: {'nama_dokumen': 'KTP', 'jenis_dokumen': 'ktp'},
+      );
+      expect(efile.fileKey, 'file');
+      expect(efile.toJson(), {'nama_dokumen': 'KTP', 'jenis_dokumen': 'ktp'});
+    });
+  });
+
   group('Form aksi tulis', () {
     Future<void> pumpForm(WidgetTester tester, String code) async {
       tester.view.physicalSize = const Size(900, 1800);
@@ -131,8 +223,9 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
     }
 
-    testWidgets('form proposal menampilkan skema, periode, dan lampiran PDF',
-        (tester) async {
+    testWidgets('form proposal menampilkan skema, periode, dan lampiran PDF', (
+      tester,
+    ) async {
       await pumpForm(tester, 'proposal-hibah');
 
       expect(find.text('Ajukan Proposal'), findsAtLeastNWidgets(1));
@@ -144,8 +237,9 @@ void main() {
       expect(find.byType(DropdownButtonFormField<int>), findsNWidgets(2));
     });
 
-    testWidgets('form pengajuan SIKEU menampilkan jenis dan nominal',
-        (tester) async {
+    testWidgets('form pengajuan SIKEU menampilkan jenis dan nominal', (
+      tester,
+    ) async {
       await pumpForm(tester, 'pengajuan-sikeu');
 
       expect(find.text('Kirim Pengajuan'), findsAtLeastNWidgets(1));
@@ -155,8 +249,9 @@ void main() {
       expect(find.text('Lampiran opsional (PDF/JPG/PNG)'), findsOneWidget);
     });
 
-    testWidgets('form tiket SINAPRA menampilkan prioritas dan deskripsi',
-        (tester) async {
+    testWidgets('form tiket SINAPRA menampilkan prioritas dan deskripsi', (
+      tester,
+    ) async {
       await pumpForm(tester, 'tiket-sinapra');
 
       expect(find.text('Lapor Kerusakan'), findsAtLeastNWidgets(1));
@@ -185,9 +280,7 @@ void main() {
       });
 
       await tester.pumpWidget(
-        _screen(
-          const MobileFeatureListScreen(featureCode: 'pengajuan-sikeu'),
-        ),
+        _screen(const MobileFeatureListScreen(featureCode: 'pengajuan-sikeu')),
       );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));

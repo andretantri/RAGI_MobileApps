@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/mobile_feature_config.dart';
 import '../../core/models/mobile_feature_model.dart';
+import '../../core/models/mobile_staff_models.dart';
 import '../../core/providers/mobile_feature_provider.dart';
 import '../../core/services/api_exception.dart';
 import '../../core/theme/app_colors.dart';
@@ -30,9 +31,8 @@ class MobileFeatureListScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: RefreshIndicator(
-        onRefresh: () async => ref.invalidate(
-          mobileFeatureItemsProvider(featureCode),
-        ),
+        onRefresh: () async =>
+            ref.invalidate(mobileFeatureItemsProvider(featureCode)),
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
@@ -54,8 +54,11 @@ class MobileFeatureListScreen extends ConsumerWidget {
                               context.go('/home');
                             }
                           },
-                          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                              color: Colors.white, size: 20),
+                          icon: const Icon(
+                            Icons.arrow_back_ios_new_rounded,
+                            color: Colors.white,
+                            size: 20,
+                          ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -149,97 +152,132 @@ class MobileFeatureListScreen extends ConsumerWidget {
                       );
                     }
 
-                    return SliverList.separated(
-                      itemCount: items.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 10),
-                      itemBuilder: (context, index) {
-                        final item = items[index];
-                        return Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: AppColors.surface,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: AppColors.divider),
+                    // Backend mengirim statistik referral pada kartu pertama.
+                    final rawStats =
+                        featureCode == 'referral-spmb' && items.isNotEmpty
+                        ? items.first.raw['stats']
+                        : null;
+                    final stats = rawStats is Map
+                        ? MobileStaffReferralStats.fromJson(rawStats)
+                        : null;
+
+                    return SliverMainAxisGroup(
+                      slivers: [
+                        if (stats != null)
+                          SliverToBoxAdapter(
+                            child: _ReferralStatsCard(stats: stats),
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                item.title.isNotEmpty
-                                    ? item.title
-                                    : 'Data ${feature.title}',
-                                style: AppTextStyles.bodyMedium.copyWith(
-                                  fontWeight: FontWeight.w700,
+                        SliverList.separated(
+                          itemCount: items.length,
+                          separatorBuilder: (_, _) =>
+                              const SizedBox(height: 10),
+                          itemBuilder: (context, index) {
+                            final item = items[index];
+                            return InkWell(
+                              onTap: feature.hasDetail
+                                  ? () => context.push(
+                                      '/mobile-staff/detail/${feature.code}/${item.id}',
+                                      extra: item,
+                                    )
+                                  : null,
+                              borderRadius: BorderRadius.circular(16),
+                              child: Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: AppColors.surface,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: AppColors.divider),
                                 ),
-                              ),
-                              if (item.subtitle.isNotEmpty) ...[
-                                const SizedBox(height: 4),
-                                Text(
-                                  item.subtitle,
-                                  style: AppTextStyles.caption.copyWith(
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
-                              ],
-                              if (item.hasAmount || item.hasStatus) ...[
-                                const SizedBox(height: 12),
-                                Row(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    if (item.hasAmount)
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 10, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: color.withValues(alpha: 0.1),
-                                          borderRadius:
-                                              BorderRadius.circular(20),
-                                        ),
-                                        child: Text(
-                                          item.amount,
-                                          style: TextStyle(
-                                            color: color,
-                                            fontSize: 11.5,
-                                            fontWeight: FontWeight.w700,
-                                          ),
+                                    Text(
+                                      item.title.isNotEmpty
+                                          ? item.title
+                                          : 'Data ${feature.title}',
+                                      style: AppTextStyles.bodyMedium.copyWith(
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    if (item.subtitle.isNotEmpty) ...[
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        item.subtitle,
+                                        style: AppTextStyles.caption.copyWith(
+                                          color: AppColors.textSecondary,
                                         ),
                                       ),
-                                    const SizedBox(width: 8),
-                                    if (item.hasStatus)
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 10, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: AppColors.success
-                                              .withValues(alpha: 0.12),
-                                          borderRadius:
-                                              BorderRadius.circular(20),
-                                        ),
-                                        child: Text(
-                                          item.status.toUpperCase(),
-                                          style: const TextStyle(
-                                            color: AppColors.success,
-                                            fontSize: 10.5,
-                                            fontWeight: FontWeight.w700,
-                                          ),
+                                    ],
+                                    if (item.hasAmount || item.hasStatus) ...[
+                                      const SizedBox(height: 12),
+                                      Row(
+                                        children: [
+                                          if (item.hasAmount)
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 10,
+                                                    vertical: 4,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: color.withValues(
+                                                  alpha: 0.1,
+                                                ),
+                                                borderRadius:
+                                                    BorderRadius.circular(20),
+                                              ),
+                                              child: Text(
+                                                item.amount,
+                                                style: TextStyle(
+                                                  color: color,
+                                                  fontSize: 11.5,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                              ),
+                                            ),
+                                          const SizedBox(width: 8),
+                                          if (item.hasStatus)
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 10,
+                                                    vertical: 4,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: AppColors.success
+                                                    .withValues(alpha: 0.12),
+                                                borderRadius:
+                                                    BorderRadius.circular(20),
+                                              ),
+                                              child: Text(
+                                                item.status.toUpperCase(),
+                                                style: const TextStyle(
+                                                  color: AppColors.success,
+                                                  fontSize: 10.5,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ],
+                                    if (item.hasDate) ...[
+                                      const SizedBox(height: 10),
+                                      Text(
+                                        item.date,
+                                        style: AppTextStyles.caption.copyWith(
+                                          color: AppColors.textHint,
+                                          fontSize: 11,
                                         ),
                                       ),
+                                    ],
                                   ],
                                 ),
-                              ],
-                              if (item.hasDate) ...[
-                                const SizedBox(height: 10),
-                                Text(
-                                  item.date,
-                                  style: AppTextStyles.caption.copyWith(
-                                    color: AppColors.textHint,
-                                    fontSize: 11,
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        );
-                      },
+                              ),
+                            );
+                          },
+                        ),
+                      ],
                     );
                   },
                 ),
@@ -278,13 +316,15 @@ class MobileFeatureListScreen extends ConsumerWidget {
       );
     }
 
-    if (feature?.isSubmittable ?? false) {
+    if (feature != null && feature.isSubmittable) {
       actions.add(
         FloatingActionButton.extended(
           heroTag: 'submit-$featureCode',
-          onPressed: () => context.push('/features/$featureCode/form'),
+          onPressed: () => feature.usesDedicatedForm
+              ? context.push('/mobile-staff/form/$featureCode')
+              : context.push('/features/$featureCode/form'),
           icon: const Icon(Icons.add_rounded),
-          label: Text(feature!.submitLabel),
+          label: Text(feature.submitLabel),
         ),
       );
     }
@@ -294,11 +334,63 @@ class MobileFeatureListScreen extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        for (final action in actions) ...[
-          action,
-          const SizedBox(height: 10),
-        ],
+        for (final action in actions) ...[action, const SizedBox(height: 10)],
       ],
+    );
+  }
+}
+
+class _ReferralStatsCard extends StatelessWidget {
+  final MobileStaffReferralStats stats;
+
+  const _ReferralStatsCard({required this.stats});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Ringkasan Referral',
+            style: AppTextStyles.bodyMedium.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              for (final row in stats.rows)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '${row.$1}: ${row.$2}',
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
@@ -329,7 +421,11 @@ class _InfoCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Icon(Icons.inbox_outlined, size: 40, color: color.withValues(alpha: 0.7)),
+          Icon(
+            Icons.inbox_outlined,
+            size: 40,
+            color: color.withValues(alpha: 0.7),
+          ),
           const SizedBox(height: 12),
           Text(
             title,
@@ -342,8 +438,10 @@ class _InfoCard extends StatelessWidget {
           Text(
             message,
             textAlign: TextAlign.center,
-            style: AppTextStyles.caption
-                .copyWith(color: AppColors.textSecondary, height: 1.4),
+            style: AppTextStyles.caption.copyWith(
+              color: AppColors.textSecondary,
+              height: 1.4,
+            ),
           ),
           if (actionLabel != null && onAction != null) ...[
             const SizedBox(height: 16),

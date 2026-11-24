@@ -265,8 +265,15 @@ class AttendanceNotifier extends StateNotifier<AttendanceState> {
   }) async {
     state = state.copyWith(isSubmitting: true);
 
-    LocationResult loc = state.currentLocation ??
-        await LocationService.getCurrentLocationOnDemand();
+    LocationResult loc;
+    try {
+      loc = state.currentLocation ??
+          await LocationService.getCurrentLocationOnDemand();
+    } catch (e) {
+      final msg = e.toString().replaceAll('Exception: ', '');
+      state = state.copyWith(isSubmitting: false, lastMessage: msg);
+      return AttendanceResponse(success: false, message: msg);
+    }
 
     // Validasi integritas keamanan perangkat (Anti-Fake GPS & Anti-Root)
     final securityCheck =
@@ -343,8 +350,15 @@ class AttendanceNotifier extends StateNotifier<AttendanceState> {
   }) async {
     state = state.copyWith(isSubmitting: true);
 
-    LocationResult loc = state.currentLocation ??
-        await LocationService.getCurrentLocationOnDemand();
+    LocationResult loc;
+    try {
+      loc = state.currentLocation ??
+          await LocationService.getCurrentLocationOnDemand();
+    } catch (e) {
+      final msg = e.toString().replaceAll('Exception: ', '');
+      state = state.copyWith(isSubmitting: false, lastMessage: msg);
+      return AttendanceResponse(success: false, message: msg);
+    }
 
     // Validasi integritas keamanan perangkat (Anti-Fake GPS & Anti-Root)
     final securityCheck =

@@ -63,6 +63,11 @@
             android:name="com.google.firebase.messaging.default_notification_color"
             android:resource="@color/notification_color" />
 
+        <!-- Pastikan model ML Kit (Face Detection & Barcode) terunduh otomatis oleh Google Play Services -->
+        <meta-data
+            android:name="com.google.ml.vision.DEPENDENCIES"
+            android:value="face,barcode" />
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

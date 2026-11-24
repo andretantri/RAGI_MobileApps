@@ -10,6 +10,7 @@ import '../../core/providers/auth_provider.dart';
 import '../../core/providers/schedule_provider.dart';
 import '../../core/models/teaching_schedule_model.dart';
 import '../../core/models/face_verification_info.dart';
+import '../../core/services/location_service.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -92,7 +93,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         onRefresh: () async {
           await ref.read(authProvider.notifier).checkSession();
           await ref.read(attendanceProvider.notifier).fetchTodayStatus();
-          await ref.read(attendanceProvider.notifier).checkLocationAndDistance();
+          final locCheck = await LocationService.checkLocationPrerequisites(requestIfNotGranted: false);
+          if (locCheck.isReady) {
+            await ref.read(attendanceProvider.notifier).checkLocationAndDistance();
+          }
           await ref.read(scheduleProvider.notifier).refresh();
         },
         child: CustomScrollView(
@@ -143,8 +147,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final rawId = scheduleNidn.isNotEmpty
         ? scheduleNidn
         : (user?.displayId ?? '-');
-    final name = _maskSensoredText(rawName);
-    final id = _maskSensoredId(rawId);
+    final name = rawName;
+    final id = rawId;
     final idLabel = scheduleNidn.isNotEmpty
         ? 'NIDN'
         : (user?.displayIdLabel ?? 'NIP');
@@ -985,7 +989,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             width: double.infinity,
             height: 46,
             child: ElevatedButton.icon(
-              onPressed: () => context.push('/scanner'),
+              onPressed: () async {
+                // Cek izin lokasi & GPS saat pengguna menekan tombol presensi
+                final check = await LocationService.checkLocationPrerequisites();
+                if (!context.mounted) return;
+                if (!check.isReady) {
+                  await LocationService.showLocationRequirementDialog(context, check);
+                  return;
+                }
+                context.push('/scanner');
+              },
               icon: Icon(
                 isDone
                     ? Icons.check_circle_rounded
@@ -1816,18 +1829,3 @@ class _HeaderBadge extends StatelessWidget {
   }
 }
 
-String _maskSensoredText(String text) {
-  final trimmed = text.trim();
-  if (trimmed.isEmpty || trimmed == '-') return trimmed;
-  final parts = trimmed.split(' ');
-  return parts.map((w) {
-    if (w.length <= 2) return w;
-    return '${w.substring(0, 2)}${'*' * (w.length - 2)}';
-  }).join(' ');
-}
-
-String _maskSensoredId(String id) {
-  final trimmed = id.trim();
-  if (trimmed.length <= 4) return trimmed;
-  return '${trimmed.substring(0, 4)}${'*' * (trimmed.length - 4)}';
-}

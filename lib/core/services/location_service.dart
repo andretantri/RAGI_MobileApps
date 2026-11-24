@@ -1,5 +1,21 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+
+class LocationCheckResult {
+  final bool isReady;
+  final String? errorMessage;
+  final bool isGpsDisabled;
+  final bool isPermissionDenied;
+  final bool isPermanentlyDenied;
+
+  const LocationCheckResult({
+    required this.isReady,
+    this.errorMessage,
+    this.isGpsDisabled = false,
+    this.isPermissionDenied = false,
+    this.isPermanentlyDenied = false,
+  });
+}
 
 class LocationResult {
   final double latitude;
@@ -58,6 +74,118 @@ class OfficeLocationModel {
 }
 
 class LocationService {
+  /// Memeriksa status GPS & izin lokasi sebelum presensi dijalankan.
+  /// Hanya dipanggil saat pengguna mengakses fitur presensi, bukan saat
+  /// sekadar menjelajahi menu umum.
+  static Future<LocationCheckResult> checkLocationPrerequisites({
+    bool requestIfNotGranted = true,
+  }) async {
+    // 1. Periksa apakah GPS perangkat aktif
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      return const LocationCheckResult(
+        isReady: false,
+        isGpsDisabled: true,
+        errorMessage:
+            'Layanan GPS perangkat belum aktif. Presensi memerlukan GPS aktif untuk memvalidasi posisi Anda.',
+      );
+    }
+
+    // 2. Periksa status izin lokasi
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied && requestIfNotGranted) {
+      permission = await Geolocator.requestPermission();
+    }
+
+    if (permission == LocationPermission.denied) {
+      return const LocationCheckResult(
+        isReady: false,
+        isPermissionDenied: true,
+        errorMessage: 'Izin akses lokasi diperlukan untuk presensi pegawai.',
+      );
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      return const LocationCheckResult(
+        isReady: false,
+        isPermanentlyDenied: true,
+        errorMessage:
+            'Izin lokasi ditolak permanen. Silakan aktifkan izin lokasi di pengaturan aplikasi.',
+      );
+    }
+
+    return const LocationCheckResult(isReady: true);
+  }
+
+  /// Menampilkan dialog panduan jika lokasi / GPS belum aktif saat presensi.
+  static Future<bool> showLocationRequirementDialog(
+    BuildContext context,
+    LocationCheckResult check,
+  ) async {
+    if (check.isReady) return true;
+
+    final isGps = check.isGpsDisabled;
+    final title = isGps ? 'Aktifkan GPS Perangkat' : 'Izin Lokasi Diperlukan';
+    final message = isGps
+        ? 'Layanan GPS pada HP Anda sedang mati. Presensi membutuhkan lokasi GPS aktif untuk memvalidasi posisi di area kampus. Silakan aktifkan GPS terlebih dahulu.'
+        : 'Presensi pegawai membutuhkan izin akses lokasi agar server dapat memvalidasi kehadiran Anda. Silakan berikan izin lokasi.';
+    final buttonText = isGps ? 'Buka Pengaturan GPS' : 'Buka Pengaturan Izin';
+
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(
+              isGps ? Icons.location_off_rounded : Icons.location_searching_rounded,
+              color: const Color(0xFFE65100),
+              size: 26,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          message,
+          style: const TextStyle(fontSize: 13.5, height: 1.45),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0D47A1),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            onPressed: () async {
+              Navigator.of(ctx).pop(true);
+              if (isGps) {
+                await Geolocator.openLocationSettings();
+              } else {
+                await Geolocator.openAppSettings();
+              }
+            },
+            child: Text(buttonText),
+          ),
+        ],
+      ),
+    );
+
+    return result ?? false;
+  }
+
   /// Mengambil lokasi GPS secara on-demand (diadopsi dari Project/indonusa/absen)
   static Future<LocationResult> getCurrentLocationOnDemand() async {
     try {

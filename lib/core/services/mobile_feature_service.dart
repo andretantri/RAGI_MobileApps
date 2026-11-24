@@ -48,7 +48,10 @@ class MobileFeatureService {
     try {
       final response = await _dio.get(
         '$baseUrl${feature.endpoint}',
-        queryParameters: const {'per_page': 15},
+        queryParameters: <String, dynamic>{
+          ...feature.queryParams,
+          'per_page': 15,
+        },
         options: Options(
           headers: token != null && token.isNotEmpty
               ? {'Authorization': 'Bearer $token'}
@@ -99,17 +102,11 @@ class MobileFeatureService {
       formData.files.add(
         MapEntry(
           submission.fileKey,
-          await MultipartFile.fromFile(
-            file.path,
-            filename: file.name,
-          ),
+          await MultipartFile.fromFile(file.path, filename: file.name),
         ),
       );
       body = formData;
-      options = Options(
-        headers: headers,
-        contentType: 'multipart/form-data',
-      );
+      options = Options(headers: headers, contentType: 'multipart/form-data');
     }
 
     try {

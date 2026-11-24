@@ -2,7 +2,7 @@ name: myinu_staff
 description: "myInU Staff — Aplikasi mobile untuk Dosen & Staff kampus"
 publish_to: 'none'
 
-version: 1.1.0+25
+version: 1.1.0+30
 
 environment:
   sdk: ^3.12.2
@@ -48,6 +48,7 @@ dependencies:
   qr_flutter: ^4.1.0
   permission_handler: ^13.0.2
   google_mlkit_face_detection: ^1.0.3
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:

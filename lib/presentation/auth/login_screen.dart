@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -17,8 +16,8 @@ class LoginScreen extends ConsumerStatefulWidget {
 class _LoginScreenState extends ConsumerState<LoginScreen>
     with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
-  final _nipController = TextEditingController(text: kDebugMode ? '0603******' : '');
-  final _passwordController = TextEditingController(text: kDebugMode ? '••••••••' : '');
+  final _nipController = TextEditingController();
+  final _passwordController = TextEditingController();
   bool _obscure = true;
   bool _loading = false;
   bool _rememberMe = true;
@@ -52,10 +51,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     if (!_formKey.currentState!.validate()) return;
     setState(() => _loading = true);
 
-    final rawNip = _nipController.text.trim();
-    final nip = rawNip.startsWith('0603*') ? '0603048802' : rawNip;
-    final rawPass = _passwordController.text.trim();
-    final password = rawPass == '••••••••' ? 'indonusa' : rawPass;
+    final nip = _nipController.text.trim();
+    final password = _passwordController.text.trim();
 
     final success = await ref.read(authProvider.notifier).login(
           nip,
@@ -718,7 +715,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                                     ),
                                                     const SizedBox(height: 2),
                                                     Text(
-                                                      'Versi 1.1.0 • Build 25',
+                                                      'Versi 1.1.0 • Build 30',
                                                       style: GoogleFonts.inter(
                                                         fontSize: 10,
                                                         color: const Color(0xFF94A3B8),

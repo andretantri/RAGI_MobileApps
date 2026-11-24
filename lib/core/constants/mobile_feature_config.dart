@@ -10,7 +10,31 @@ enum MobileFeatureFormType {
   pengajuanSikeu,
   tiketSinapra,
   referralSpmb,
+  cutiSimpeg,
+  izinKerjaSimpeg,
+  suratTugasSimpeg,
+  skPegawaiSimpeg,
+  eFileArsip,
 }
+
+/// Nilai tetap domain e-file (`DokumenPegawai::JENIS_DOKUMEN` di backend).
+/// Bukan entitas master, jadi boleh statis dan terpusat di sini.
+const List<String> mobileEfileJenisDokumen = <String>[
+  'ktp',
+  'kk',
+  'ijazah',
+  'sk',
+  'serdos',
+  'sertifikat',
+  'lainnya',
+];
+
+/// Sumber data kompetensi pada endpoint `/mobile/staff/simpeg/kompetensi`.
+const List<String> mobileKompetensiJenis = <String>[
+  'sertifikasi',
+  'tes',
+  'pelatihan',
+];
 
 /// Satu fitur mobile yang dikurasi dari modul RAG.
 ///
@@ -30,6 +54,21 @@ class MobileFeature {
   final MobileFeatureFormType formType;
   final String submitLabel;
 
+  /// Fitur dengan detail dedicated memakai layar `MobileStaffDetailScreen`.
+  final bool hasDetail;
+
+  /// Template endpoint detail; `{id}` diganti ID item dari daftar.
+  final String? detailEndpoint;
+
+  /// Template endpoint unduh biner/signed URL; `{id}` diganti ID item.
+  final String? downloadEndpoint;
+
+  /// Kunci master SIMPEG yang wajib dipilih pada form (ID dari API master).
+  final List<String> masterKeys;
+
+  /// Query default saat memuat daftar (mis. jenis kompetensi).
+  final Map<String, dynamic> queryParams;
+
   const MobileFeature({
     required this.code,
     required this.title,
@@ -43,11 +82,28 @@ class MobileFeature {
     this.submitEndpoint,
     this.formType = MobileFeatureFormType.none,
     this.submitLabel = 'Kirim',
+    this.hasDetail = false,
+    this.detailEndpoint,
+    this.downloadEndpoint,
+    this.masterKeys = const <String>[],
+    this.queryParams = const <String, dynamic>{},
   });
 
   bool get hasEndpoint => endpoint != null && endpoint!.isNotEmpty;
   bool get hasSubmit => submitEndpoint != null && submitEndpoint!.isNotEmpty;
   bool get isSubmittable => hasSubmit && formType != MobileFeatureFormType.none;
+
+  /// Form self-service baru memakai layar khusus dengan master dinamis.
+  bool get usesDedicatedForm => const <MobileFeatureFormType>{
+    MobileFeatureFormType.cutiSimpeg,
+    MobileFeatureFormType.izinKerjaSimpeg,
+    MobileFeatureFormType.suratTugasSimpeg,
+    MobileFeatureFormType.skPegawaiSimpeg,
+    MobileFeatureFormType.eFileArsip,
+  }.contains(formType);
+
+  static String resolveId(String template, String id) =>
+      template.replaceAll('{id}', id);
 }
 
 class AppMobileFeatures {
@@ -62,6 +118,75 @@ class AppMobileFeatures {
       color: AppColors.primary,
       description:
           'Menampilkan nama gelar, NIDN/NIP, jabatan, unit, dan email akun.',
+    ),
+    MobileFeature(
+      code: 'cuti',
+      title: 'Pengajuan Cuti',
+      subtitle: 'Riwayat dan pengajuan cuti pegawai',
+      moduleCode: 'simpeg',
+      endpoint: '/mobile/staff/simpeg/cuti',
+      icon: Icons.event_available_outlined,
+      color: AppColors.primary,
+      description: 'Ajukan cuti dengan jenis dari master dan pantau statusnya.',
+      submitEndpoint: '/mobile/staff/simpeg/cuti',
+      formType: MobileFeatureFormType.cutiSimpeg,
+      submitLabel: 'Ajukan Cuti',
+      masterKeys: ['jenis_cuti'],
+    ),
+    MobileFeature(
+      code: 'izin-kerja',
+      title: 'Izin Jam Kerja',
+      subtitle: 'Izin keluar kantor dan jam kerja',
+      moduleCode: 'simpeg',
+      endpoint: '/mobile/staff/simpeg/izin-kerja',
+      icon: Icons.schedule_outlined,
+      color: AppColors.primary,
+      description: 'Ajukan izin jam kerja beserta bukti opsional.',
+      submitEndpoint: '/mobile/staff/simpeg/izin-kerja',
+      formType: MobileFeatureFormType.izinKerjaSimpeg,
+      submitLabel: 'Ajukan Izin',
+      masterKeys: ['jenis_izin'],
+    ),
+    MobileFeature(
+      code: 'surat-tugas',
+      title: 'Surat Tugas',
+      subtitle: 'Penugasan, perjalanan, dan LPJ',
+      moduleCode: 'simpeg',
+      endpoint: '/mobile/staff/simpeg/surat-tugas',
+      icon: Icons.assignment_outlined,
+      color: AppColors.primary,
+      description:
+          'Ajukan surat tugas dan unggah LPJ setelah penugasan disetujui.',
+      submitEndpoint: '/mobile/staff/simpeg/surat-tugas',
+      formType: MobileFeatureFormType.suratTugasSimpeg,
+      submitLabel: 'Ajukan Surat Tugas',
+      hasDetail: true,
+      masterKeys: ['kategori_kegiatan', 'jenis_transportasi'],
+    ),
+    MobileFeature(
+      code: 'sk-pegawai',
+      title: 'SK Pegawai',
+      subtitle: 'Riwayat SK dan dokumen kepegawaian',
+      moduleCode: 'simpeg',
+      endpoint: '/mobile/staff/simpeg/sk-pegawai',
+      icon: Icons.description_outlined,
+      color: AppColors.primary,
+      description: 'Simpan SK pegawai dengan kategori dari master data.',
+      submitEndpoint: '/mobile/staff/simpeg/sk-pegawai',
+      formType: MobileFeatureFormType.skPegawaiSimpeg,
+      submitLabel: 'Tambah SK',
+      masterKeys: ['kategori_sk'],
+    ),
+    MobileFeature(
+      code: 'kompetensi',
+      title: 'Kompetensi',
+      subtitle: 'Sertifikasi, tes, dan pelatihan',
+      moduleCode: 'simpeg',
+      endpoint: '/mobile/staff/simpeg/kompetensi',
+      icon: Icons.verified_outlined,
+      color: AppColors.primary,
+      description: 'Daftar kompetensi pegawai login (default: sertifikasi).',
+      queryParams: {'jenis': 'sertifikasi'},
     ),
 
     // SIPPM
@@ -101,6 +226,9 @@ class AppMobileFeatures {
       icon: Icons.receipt_long_outlined,
       color: AppColors.sikeu,
       description: 'Slip payroll per bulan beserta ringkasan potongan.',
+      hasDetail: true,
+      detailEndpoint: '/mobile/staff/sikeu/payroll/{id}',
+      downloadEndpoint: '/mobile/staff/sikeu/payroll/{id}/slip',
     ),
     MobileFeature(
       code: 'pengajuan-sikeu',
@@ -151,6 +279,12 @@ class AppMobileFeatures {
       icon: Icons.folder_outlined,
       color: AppColors.arsip,
       description: 'Dokumen kepegawaian yang tersimpan di arsip digital.',
+      submitEndpoint: '/mobile/staff/arsip/e-file',
+      formType: MobileFeatureFormType.eFileArsip,
+      submitLabel: 'Unggah Dokumen',
+      hasDetail: true,
+      detailEndpoint: '/mobile/staff/arsip/e-file/{id}',
+      downloadEndpoint: '/mobile/staff/arsip/e-file/{id}/download',
     ),
     MobileFeature(
       code: 'surat-arsip',
@@ -196,8 +330,7 @@ class AppMobileFeatures {
       endpoint: '/mobile/staff/spmb/referral',
       icon: Icons.card_giftcard_outlined,
       color: AppColors.spmb,
-      description:
-          'Bagikan kode/QR referral dan pantau mahasiswa yang dibawa.',
+      description: 'Bagikan kode/QR referral dan pantau mahasiswa yang dibawa.',
       submitEndpoint: '/mobile/staff/spmb/referral',
       formType: MobileFeatureFormType.referralSpmb,
       submitLabel: 'Buat Link Referral',

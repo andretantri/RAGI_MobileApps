@@ -8,6 +8,7 @@ import 'package:animations/animations.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/providers/notification_provider.dart';
 import '../../core/services/app_permission_service.dart';
+import '../../core/services/location_service.dart';
 
 class MainShell extends ConsumerStatefulWidget {
   final Widget child;
@@ -107,8 +108,15 @@ class _MainShellState extends ConsumerState<MainShell> {
           }
           _onTap(context, index);
         },
-        onTapCenterScan: () {
+        onTapCenterScan: () async {
           HapticFeedback.mediumImpact();
+          // Cek izin lokasi & GPS hanya saat mengakses fitur absen
+          final check = await LocationService.checkLocationPrerequisites();
+          if (!context.mounted) return;
+          if (!check.isReady) {
+            await LocationService.showLocationRequirementDialog(context, check);
+            return;
+          }
           try {
             context.push('/scanner');
           } catch (_) {}

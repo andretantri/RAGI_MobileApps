@@ -46,8 +46,8 @@ class ProfileScreen extends ConsumerWidget {
     final rawId = scheduleNidn.isNotEmpty
         ? scheduleNidn
         : (user?.displayId ?? '-');
-    final name = _maskSensoredText(rawName);
-    final id = _maskSensoredId(rawId);
+    final name = rawName;
+    final id = rawId;
     final idLabel = scheduleNidn.isNotEmpty
         ? 'NIDN'
         : (user?.displayIdLabel ?? 'NIP');
@@ -627,6 +627,12 @@ class ProfileScreen extends ConsumerWidget {
             'color': AppColors.textSecondary,
             'route': '/profile/about',
           },
+          {
+            'icon': Icons.devices_rounded,
+            'label': 'Informasi Sistem',
+            'color': const Color(0xFF0284C7),
+            'action': 'system_info',
+          },
         ],
       },
     ];
@@ -684,6 +690,10 @@ class ProfileScreen extends ConsumerWidget {
                                 trailing: const Icon(Icons.chevron_right,
                                     size: 18, color: AppColors.textSecondary),
                                 onTap: () {
+                                  if (item['action'] == 'system_info') {
+                                    _showSystemInfoModal(context);
+                                    return;
+                                  }
                                   final label = item['label'] as String? ?? '';
                                   final route = item['route'] as String?;
                                   if (route != null && route.isNotEmpty) {
@@ -772,6 +782,225 @@ class ProfileScreen extends ConsumerWidget {
                   ),
                 );
               },
+            ),
+          ),
+
+          // Informasi Sistem & Versi Footer
+          const SizedBox(height: 24),
+          Center(
+            child: Column(
+              children: [
+                Text(
+                  'MyIn-U Staff • Versi 1.1.0 (Build 30)',
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  'Ekosistem SIAKAD & SIMPEG Terpadu',
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.textSecondary.withValues(alpha: 0.8),
+                    fontSize: 11,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Politeknik Indonusa Surakarta',
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.textSecondary.withValues(alpha: 0.65),
+                    fontSize: 10.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSystemInfoModal(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.divider,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.devices_rounded,
+                      color: AppColors.primary, size: 24),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Informasi Sistem',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'MyIn-U Staff • Ekosistem Terpadu',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary.withValues(alpha: 0.9),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close_rounded,
+                      color: AppColors.textSecondary),
+                  onPressed: () => Navigator.of(ctx).pop(),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.divider),
+              ),
+              child: const Column(
+                children: [
+                  _SystemInfoRow(
+                    label: 'Versi Aplikasi',
+                    value: 'v1.1.0',
+                    isHighlight: true,
+                  ),
+                  Divider(height: 1, color: AppColors.divider),
+                  _SystemInfoRow(
+                    label: 'Kode Build (Version Code)',
+                    value: 'Build 30 (Release)',
+                  ),
+                  Divider(height: 1, color: AppColors.divider),
+                  _SystemInfoRow(
+                    label: 'Arsitektur Memori',
+                    value: '16 KB Page Aligned (Android 15+)',
+                  ),
+                  Divider(height: 1, color: AppColors.divider),
+                  _SystemInfoRow(
+                    label: 'Lingkungan Backend',
+                    value: 'Server Produksi RAG (HTTPS)',
+                  ),
+                  Divider(height: 1, color: AppColors.divider),
+                  _SystemInfoRow(
+                    label: 'Otentikasi',
+                    value: 'Single Sign-On (SSO Terpadu)',
+                  ),
+                  Divider(height: 1, color: AppColors.divider),
+                  _SystemInfoRow(
+                    label: 'Keamanan Biometrik',
+                    value: 'ML Kit Face AI + Hardware Auth',
+                  ),
+                  Divider(height: 1, color: AppColors.divider),
+                  _SystemInfoRow(
+                    label: 'Institusi',
+                    value: 'Politeknik Indonusa Surakarta',
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              height: 46,
+              child: ElevatedButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text(
+                  'Tutup',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SystemInfoRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final bool isHighlight;
+
+  const _SystemInfoRow({
+    required this.label,
+    required this.value,
+    this.isHighlight = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12.5,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: isHighlight ? FontWeight.w700 : FontWeight.w600,
+                color: isHighlight ? AppColors.primary : AppColors.textPrimary,
+              ),
             ),
           ),
         ],
@@ -925,20 +1154,4 @@ class _InfoCard extends StatelessWidget {
       ),
     );
   }
-}
-
-String _maskSensoredText(String text) {
-  final trimmed = text.trim();
-  if (trimmed.isEmpty || trimmed == '-') return trimmed;
-  final parts = trimmed.split(' ');
-  return parts.map((w) {
-    if (w.length <= 2) return w;
-    return '${w.substring(0, 2)}${'*' * (w.length - 2)}';
-  }).join(' ');
-}
-
-String _maskSensoredId(String id) {
-  final trimmed = id.trim();
-  if (trimmed.length <= 4) return trimmed;
-  return '${trimmed.substring(0, 4)}${'*' * (trimmed.length - 4)}';
 }

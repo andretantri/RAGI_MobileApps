@@ -226,11 +226,13 @@ class _FaceEnrollmentScreenState extends ConsumerState<FaceEnrollmentScreen>
       _faceStatusText = 'Mencari wajah di kamera...';
     });
 
+    // Sampai 3 pose terkumpul; jangan berhenti terlalu cepat saat pengguna
+    // masih mengatur posisi wajah di dalam oval.
     int misses = 0;
     while (mounted &&
         _isAutoCapturing &&
         _capturedPhotos.length < 3 &&
-        misses < 30) {
+        misses < 120) {
       final String? frame = await _cameraAdapter.takePictureBase64();
       if (frame == null || frame.isEmpty) {
         misses++;
@@ -262,9 +264,9 @@ class _FaceEnrollmentScreenState extends ConsumerState<FaceEnrollmentScreen>
         misses++;
         setState(() {
           _faceStatusText =
-              'Wajah belum terdeteksi. Hadapkan wajah ke kamera.';
+              'Mencari wajah... pastikan wajah berada di dalam oval dan cukup terang.';
         });
-        await Future.delayed(const Duration(milliseconds: 700));
+        await Future.delayed(const Duration(milliseconds: 550));
       }
     }
 

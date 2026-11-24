@@ -55,12 +55,46 @@ class NativeCameraAdapter implements CameraAdapter {
 
   @override
   Widget buildPreview() {
-    if (_controller != null && _isReady) {
-      // Preview harus mengisi layar agar tidak tampil sebagai kotak kecil
-      // di tengah halaman saat kamera langsung dinyalakan.
-      return SizedBox.expand(child: CameraPreview(_controller!));
+    final controller = _controller;
+    if (controller == null || !_isReady || !controller.value.isInitialized) {
+      return const SizedBox.shrink();
     }
-    return const SizedBox.shrink();
+
+    // Kamera preview harus proporsional tanpa distorsi (tidak gepeng)
+    // dan menutupi seluruh layar (BoxFit.cover).
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final screenWidth = constraints.maxWidth;
+        final screenHeight = constraints.maxHeight;
+        if (screenWidth <= 0 || screenHeight <= 0) return const SizedBox.shrink();
+
+        final screenAspect = screenWidth / screenHeight;
+        final rawAspect = controller.value.aspectRatio;
+        // Di orientasi portrait, rasio kamera (lebar / tinggi) selalu < 1.0 (misal 9/16 = 0.5625 atau 3/4 = 0.75)
+        final cameraAspect = rawAspect > 1.0 ? (1.0 / rawAspect) : rawAspect;
+
+        // Skala seragam (uniform scale) agar preview menutupi seluruh layar
+        // tanpa mengubah rasio aspek kamera.
+        final double scale;
+        if (screenAspect < cameraAspect) {
+          scale = screenHeight / (screenWidth / cameraAspect);
+        } else {
+          scale = screenWidth / (screenHeight * cameraAspect);
+        }
+
+        return ClipRect(
+          child: Center(
+            child: Transform.scale(
+              scale: scale,
+              child: AspectRatio(
+                aspectRatio: cameraAspect,
+                child: CameraPreview(controller),
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override

@@ -9,6 +9,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/providers/attendance_provider.dart';
 import '../../core/services/app_permission_service.dart';
+import '../../core/services/location_service.dart';
 
 class ScannerScreen extends ConsumerStatefulWidget {
   const ScannerScreen({super.key});
@@ -20,6 +21,7 @@ class ScannerScreen extends ConsumerStatefulWidget {
 class _ScannerScreenState extends ConsumerState<ScannerScreen>
     with SingleTickerProviderStateMixin {
   final MobileScannerController _scannerController = MobileScannerController(
+    autoStart: false,
     detectionSpeed: DetectionSpeed.noDuplicates,
     facing: CameraFacing.back,
   );
@@ -35,6 +37,9 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
   bool _isSuccess = true;
   bool _loading = false;
 
+  // Kamera wajah depan langsung dinyalakan begitu halaman absen dibuka.
+  bool _isFaceCaptureOpen = false;
+
   @override
   void initState() {
     super.initState();
@@ -48,13 +53,28 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
     unawaited(AppPermissionService.requestCamera());
 
     // Auto-select mode: jika belum clock in -> Masuk, jika sudah clock in -> Pulang
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
       final state = ref.read(attendanceProvider);
       setState(() {
         _isClockIn = !state.hasClockedIn;
       });
+
+      // Validasi izin lokasi & GPS hanya saat mengakses fitur presensi
+      final locCheck = await LocationService.checkLocationPrerequisites();
+      if (!mounted) return;
+      if (!locCheck.isReady) {
+        final opened = await LocationService.showLocationRequirementDialog(context, locCheck);
+        if (!opened && mounted) {
+          Navigator.of(context).maybePop();
+          return;
+        }
+      }
+
       // Segarkan koordinat GPS
       ref.read(attendanceProvider.notifier).checkLocationAndDistance();
+      // Kamera wajah langsung ditampilkan untuk presensi
+      await _openFaceCapture();
     });
   }
 
@@ -74,9 +94,55 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
     _processAttendance(qrCode: barcode.rawValue);
   }
 
+  /// Buka kamera depan segera setelah halaman absen dibuka.
+  ///
+  /// Foto yang sudah diambil langsung diproses. Bila pengguna membatalkan,
+  /// halaman kembali ke scanner QR dan tombol konfirmasi tetap bisa dipakai
+  /// untuk membuka kamera wajah lagi.
+  Future<void> _openFaceCapture() async {
+    if (!mounted || _hasScanned || _loading || _isFaceCaptureOpen) return;
+
+    setState(() => _isFaceCaptureOpen = true);
+    // Hanya satu kamera yang boleh aktif: matikan scanner QR dulu.
+    try {
+      _scannerController.stop();
+    } catch (_) {}
+
+    try {
+      await AppPermissionService.requestCamera();
+      if (!mounted) return;
+      final captured = await context.push<String>('/face-capture');
+      if (!mounted) return;
+
+      if (captured != null && captured.trim().isNotEmpty) {
+        await _processAttendance(faceImage: captured);
+        return;
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('[Scanner] gagal membuka kamera wajah: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isFaceCaptureOpen = false);
+        if (!_hasScanned) {
+          try {
+            _scannerController.start();
+          } catch (_) {}
+        }
+      }
+    }
+  }
+
   // Proses presensi baik lewat scan QR maupun tombol capture kamera
-  Future<void> _processAttendance({String? qrCode}) async {
+  Future<void> _processAttendance({String? qrCode, String? faceImage}) async {
     if (_hasScanned || _loading) return;
+
+    // Pastikan lokasi GPS aktif sebelum memproses absensi
+    final locCheck = await LocationService.checkLocationPrerequisites();
+    if (!mounted) return;
+    if (!locCheck.isReady) {
+      await LocationService.showLocationRequirementDialog(context, locCheck);
+      return;
+    }
 
     setState(() {
       _hasScanned = true;
@@ -89,8 +155,8 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
 
     // Amankan foto wajah live dari kamera depan. Tanpa foto ini backend
     // tidak akan melakukan verifikasi biometrik dan presensi ditolak.
-    final faceImage = await _captureFaceImage();
-    if (faceImage == null) {
+    final capturedFace = faceImage ?? await _captureFaceImage();
+    if (capturedFace == null) {
       if (mounted) {
         setState(() {
           _hasScanned = false;
@@ -111,8 +177,8 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
 
     final notifier = ref.read(attendanceProvider.notifier);
     final response = _isClockIn
-        ? await notifier.clockIn(qrCode: qrCode, faceImage: faceImage)
-        : await notifier.clockOut(faceImage: faceImage);
+        ? await notifier.clockIn(qrCode: qrCode, faceImage: capturedFace)
+        : await notifier.clockOut(faceImage: capturedFace);
 
     if (mounted) {
       setState(() {
@@ -170,15 +236,59 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
         },
         child: Stack(
           children: [
-          // 1. Live Camera Feed
-          if (!_hasScanned)
+          // 1. Live Camera Feed (QR). Saat kamera wajah depan aktif, scanner
+          // dilepas agar tidak terjadi konflik dua kamera secara bersamaan.
+          if (!_hasScanned && !_isFaceCaptureOpen)
             MobileScanner(
               controller: _scannerController,
               onDetect: _onDetect,
+              errorBuilder: (context, error, child) {
+                return ColoredBox(
+                  color: const Color(0xFF0F172A),
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.qr_code_scanner_rounded, color: Colors.white54, size: 48),
+                          const SizedBox(height: 12),
+                          const Text(
+                            'Kamera Scanner siap digunakan',
+                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14),
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            'Arahkan ke QR Code di dinding atau ketuk tombol di bawah untuk presensi wajah.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Colors.white60, fontSize: 12),
+                          ),
+                          const SizedBox(height: 14),
+                          OutlinedButton.icon(
+                            onPressed: () async {
+                              await AppPermissionService.requestCamera();
+                              try {
+                                await _scannerController.stop();
+                                await _scannerController.start();
+                              } catch (_) {}
+                            },
+                            icon: const Icon(Icons.refresh_rounded, size: 16),
+                            label: const Text('Segarkan Kamera'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFF38BDF8),
+                              side: const BorderSide(color: Color(0xFF38BDF8)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
 
-          // Dark overlay ketika scan selesai
-          if (_hasScanned)
+          // Latar gelap saat kamera wajah disiapkan / hasil presensi tampil
+          if (_hasScanned || _isFaceCaptureOpen)
             Container(color: const Color(0xFF0F172A)),
 
           // 2. Top Header & Navigasi

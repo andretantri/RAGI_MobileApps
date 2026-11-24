@@ -15,12 +15,11 @@ class AppPermissionService {
   static bool _requestedOnStart = false;
 
   /// Dipanggil sekali saat shell terautentikasi pertama kali dibuat.
+  /// Hanya meminta izin dasar notifikasi. Izin lokasi dan kamera hanya
+  /// diminta saat pengguna benar-benar mengakses fitur presensi/kamera.
   static Future<void> requestOnAuthenticatedStart() async {
     if (kIsWeb || _requestedOnStart) return;
     _requestedOnStart = true;
-
-    await requestCamera();
-    await requestLocation();
 
     try {
       await LocalNotificationService.instance.requestPermissions();

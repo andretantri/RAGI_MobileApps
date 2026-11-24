@@ -81,3 +81,13 @@ flutter {
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }
+
+configurations.all {
+    resolutionStrategy {
+        force("com.google.mlkit:barcode-scanning:17.3.0")
+        force("com.scottyab:rootbeer-lib:0.1.2")
+        dependencySubstitution {
+            substitute(module("com.github.scottyab:rootbeer")).using(module("com.scottyab:rootbeer-lib:0.1.2"))
+        }
+    }
+}

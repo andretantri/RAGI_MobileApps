@@ -120,7 +120,11 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
 
   Future<void> _captureManually() async {
     if (_isCapturing || !_isCameraReady) return;
-    setState(() => _isCapturing = true);
+    _isAutoRunning = false;
+    setState(() {
+      _isCapturing = true;
+      _statusText = 'Mengambil dan menyimpan foto wajah...';
+    });
     String? frame;
     try {
       frame = await _cameraAdapter.takePictureBase64();
@@ -140,7 +144,7 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-                'Deteksi wajah otomatis tidak tersedia di web. Gunakan mode manual.'),
+                'Deteksi wajah otomatis tidak didukung di perangkat ini. Gunakan tombol manual.'),
             backgroundColor: AppColors.warning,
           ),
         );
@@ -150,16 +154,16 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
 
     setState(() {
       _isAutoRunning = true;
-      _isCapturing = true;
-      _statusText = 'Mencari wajah di kamera...';
+      _statusText = 'Mencari wajah di dalam oval...';
     });
 
     int misses = 0;
-    while (mounted && _isAutoRunning && misses < 30) {
+    while (mounted && _isAutoRunning && misses < 120) {
       final frame = await _cameraAdapter.takePictureBase64();
+      if (!_isAutoRunning || !mounted) return;
       if (frame == null || frame.isEmpty) {
         misses++;
-        await Future.delayed(const Duration(milliseconds: 500));
+        await Future.delayed(const Duration(milliseconds: 350));
         continue;
       }
 
@@ -169,25 +173,34 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
       } catch (e) {
         debugPrint('[FaceCapture] gagal decode frame deteksi: $e');
       }
-      if (!mounted) return;
+      if (!_isAutoRunning || !mounted) return;
 
       if (hasFace) {
-        setState(() => _statusText = 'Wajah terdeteksi. Mengirim foto...');
+        setState(() {
+          _isAutoRunning = false;
+          _isCapturing = true;
+          _statusText = 'Wajah terdeteksi! Menyimpan foto...';
+        });
         await _finish(frame);
         return;
       }
 
       misses++;
-      setState(() => _statusText = 'Wajah belum terdeteksi. Hadapkan ke kamera.');
-      await Future.delayed(const Duration(milliseconds: 700));
+      setState(() {
+        if (misses >= 3) {
+          _statusText = 'Wajah belum terkunci otomatis. Bisa langsung ketuk tombol di bawah.';
+        } else {
+          _statusText = 'Mencari wajah... pastikan berada di dalam oval.';
+        }
+      });
+      await Future.delayed(const Duration(milliseconds: 400));
     }
 
-    if (mounted) {
+    if (mounted && _isAutoRunning) {
       setState(() {
         _isAutoRunning = false;
-        _isCapturing = false;
         if (!_hasCameraError) {
-          _statusText = 'Wajah belum terdeteksi. Coba lagi atau pakai manual.';
+          _statusText = 'Silakan ketuk tombol "Ambil Foto Sekarang" di bawah.';
         }
       });
     }
@@ -196,8 +209,7 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
   void _stopAutoCapture() {
     setState(() {
       _isAutoRunning = false;
-      _isCapturing = false;
-      _statusText = 'Tekan tombol untuk memulai lagi.';
+      _statusText = 'Deteksi otomatis dijeda. Ketuk tombol untuk foto.';
     });
   }
 
@@ -324,87 +336,89 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
           ),
 
           Positioned(
-            bottom: 28,
+            bottom: 16,
             left: 20,
             right: 20,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
+            child: SafeArea(
+              top: false,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Tombol Utama: Selalu mencolok, aktif, dan langsung mengambil foto presensi
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF0D47A1), // Indonusa Blue
+                        foregroundColor: Colors.white,
+                        elevation: 4,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
                       ),
-                    ),
-                    onPressed: !_isCameraReady || _isCapturing
-                        ? null
-                        : (_captureMode == FaceCaptureMode.auto
-                            ? (_isAutoRunning
-                                ? _stopAutoCapture
-                                : _startAutoCapture)
-                            : _captureManually),
-                    icon: Icon(
-                      _captureMode == FaceCaptureMode.auto
-                          ? Icons.auto_mode_rounded
-                          : Icons.camera_alt_rounded,
-                      size: 20,
-                    ),
-                    label: Text(
-                      _captureMode == FaceCaptureMode.auto
-                          ? (_isAutoRunning
-                              ? 'Hentikan Deteksi Wajah'
-                              : 'Mulai Take Otomatis (Deteksi Wajah)')
-                          : 'Ambil Foto Wajah',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 13.5,
+                      onPressed: (!_isCameraReady || _isCapturing)
+                          ? null
+                          : _captureManually,
+                      icon: _isCapturing
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.camera_alt_rounded, size: 22),
+                      label: Text(
+                        _isCapturing
+                            ? 'Menyimpan Foto...'
+                            : 'Ambil Foto Sekarang',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                          letterSpacing: 0.3,
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 10),
-                SizedBox(
-                  width: double.infinity,
-                  height: 42,
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      backgroundColor: Colors.black.withValues(alpha: 0.55),
-                      foregroundColor: Colors.white,
-                      side: BorderSide(
-                        color: Colors.white.withValues(alpha: 0.4),
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
+                  const SizedBox(height: 8),
+
+                  // Tombol Sakelar / Bantuan Mode
+                  TextButton.icon(
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.white70,
                     ),
-                    onPressed: !_isCameraReady || _isCapturing
+                    onPressed: _isCapturing
                         ? null
-                        : (_captureMode == FaceCaptureMode.auto
-                            ? _captureManually
-                            : _startAutoCapture),
+                        : () {
+                            if (_isAutoRunning) {
+                              _stopAutoCapture();
+                              setState(() => _captureMode = FaceCaptureMode.manual);
+                            } else {
+                              setState(() => _captureMode = FaceCaptureMode.auto);
+                              _startAutoCapture();
+                            }
+                          },
                     icon: Icon(
-                      _captureMode == FaceCaptureMode.auto
-                          ? Icons.camera_alt_rounded
+                      _isAutoRunning
+                          ? Icons.pause_circle_outline_rounded
                           : Icons.auto_mode_rounded,
-                      size: 18,
+                      size: 17,
+                      color: const Color(0xFF38BDF8),
                     ),
                     label: Text(
-                      _captureMode == FaceCaptureMode.auto
-                          ? 'Ambil Manual Sekarang'
-                          : 'Gunakan Deteksi Wajah Otomatis',
+                      _isAutoRunning
+                          ? 'Jeda Deteksi Otomatis'
+                          : 'Aktifkan Deteksi Wajah Otomatis',
                       style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12.5,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],

@@ -140,28 +140,28 @@ Pendukung aksi tulis:
 
 Catatan: kontrak belum menyediakan endpoint untuk **Info Penerimaan SPMB**, sehingga fitur `info-spmb` sengaja tetap tanpa endpoint dan menampilkan kondisi "Menunggu integrasi backend" tanpa data rekaan.
 
-### Status deploy endpoint (23 November 2026)
+### Status deploy endpoint (24 November 2026)
 
 Pengecekan langsung ke server produksi menunjukkan:
 
-- Sudah aktif: `/mobile/staff/jadwal-mengajar`, `/home`, `/avatar`, `/agendas`, `/nilai/*`, `/bimbingan-pa/*`, `/perkuliahan/*` (respon `401` tanpa token = route terdaftar).
-- **Belum ter-deploy**: `/mobile/staff/sippm/*`, `/sikeu/*`, `/sinapra/*`, `/arsip/*`, `/lms/*`, `/spmb/*` (respon `404 The route ... could not be found`).
+- Sudah aktif: `/mobile/staff/jadwal-mengajar`, `/home`, `/avatar`, `/agendas`, `/nilai/*`, `/bimbingan-pa/*`, `/perkuliahan/*`, `/mobile/staff/lms/*`, `/mobile/mahasiswa/presensi/scan`, dan `/attendance/settings` (respon `401` tanpa token = route terdaftar; `405` pada endpoint POST = route terdaftar tapi method berbeda).
+- **Belum ter-deploy**: `/mobile/staff/sippm/*`, `/sikeu/*`, `/sinapra/*`, `/arsip/*`, `/spmb/*` (respon `404 The route ... could not be found`), serta alias baru `/mobile/mahasiswa/presensi/check-in` (masih `404`; perbaikan ini perlu deploy backend RAG).
 
 Route tersebut sudah ada di `routes/api.php` lokal, jadi ini masalah deploy backend, bukan salah prefix di Flutter. Sementara backend belum di-deploy, halaman fitur menampilkan pesan **"Fitur ... belum tersedia di server"** dan tombol muat ulang, bukan pesan route Laravel. `ApiException.from` juga menyaring pesan `could not be found` secara global.
 
 ---
 
-## 7. Presensi, rekap, dan cuti (update 23 November 2026)
+## 7. Presensi, rekap, dan cuti (update 24 November 2026)
 
 ### 7.1 Batas kemiripan wajah
 
 - Aplikasi **tidak mengirim** skor/batas kemiripan ke server dan **tidak hardcode** angka 0,80. Payload `clock-in`/`clock-out` hanya berisi GPS, timestamp, QR (saat ada), dan `face_image`.
 - Sumber kebenaran batas wajah adalah pengaturan web RAG `face_score_threshold` di `core_system_settings`, kini dipakai langsung oleh `AttendanceService`, `PythonFaceService`, dan endpoint mobile. Fallback server memakai `FACE_SERVICE_MIN_SIMILARITY` (default `0.68`).
 - Endpoint baru `GET /api/v1/attendance/settings` sudah ditambahkan di source RAG (`backend/routes/api.php`) dan mengembalikan `face_score_threshold`, `minimum_face_similarity`, `source`, serta `updated_at`. Payload `GET /attendance/today` juga menyertakan field yang sama.
-- Mobile memanggil endpoint settings saat beranda dibuka, menyimpan hasilnya di `SharedPreferences`, lalu memakai nilai terakhir bila offline. Jika endpoint belum ter-deploy (produksi masih 404), mobile fallback ke payload `/attendance/today` dan teks `rejection_reason` tanpa menunjukkan error.
+- Mobile memanggil endpoint settings saat beranda dibuka, menyimpan hasilnya di `SharedPreferences`, lalu memakai nilai terakhir bila offline. Pengecekan 24 November 2026 menunjukkan endpoint sudah terdaftar di produksi (respon `401` tanpa token); bila gagal dipanggil, mobile tetap fallback ke payload `/attendance/today` dan teks `rejection_reason` tanpa menunjukkan error.
 - `FaceVerificationInfo` (`lib/core/models/face_verification_info.dart`) mem-parsing field eksplisit atau teks `Skor kemiripan`/`batas minimal` dari `rejection_reason`. Nilai `80%` dinormalkan jadi `0.80`, nilai `0.68` dipakai apa adanya. `FaceSimilaritySettings` menangani payload endpoint settings beserta metadata sumbernya.
 - Kartu presensi di beranda menampilkan skor, minimum server, dan asal batas (`pengaturan web RAG yang tersimpan` atau `konfigurasi server`); status `clock-in`/`clock-out` tidak lagi menganggap HTTP 200 dengan `success: false`/`status: ditolak` sebagai keberhasilan.
-- **Perlu deploy backend RAG** agar endpoint settings aktif di produksi. Hingga saat itu, aplikasi tetap memakai fallback `/attendance/today` tanpa perlu update aplikasi.
+- Endpoint settings tidak lagi perlu deploy khusus; yang masih menunggu deploy backend RAG adalah alias `/mobile/mahasiswa/presensi/check-in` (produksi masih `404`). Hingga backend di-deploy, scanner mahasiswa tetap memakai jalur `/presensi/scan` yang sudah aktif.
 
 ### 7.2 Rincian log presensi harian
 
@@ -195,3 +195,28 @@ Route tersebut sudah ada di `routes/api.php` lokal, jadi ini masalah deploy back
 - **Presensi manual tervalidasi:** dosen hanya dapat mengubah presensi mahasiswa yang benar-benar terdaftar di kelas pertemuan melalui KRS valid; mahasiswa dari kelas lain dan status absensi tidak dikenal ditolak (`422`). Rekap peserta juga hanya memakai KRS dengan status valid.
 - **Feature flag konsisten:** `lms_fitur_presensi` kini dijaga di endpoint presensi web dan mobile (dosen maupun mahasiswa). Saat dimatikan, aksi presensi mendapat `403`; pengguna dengan permission `lms.presensi.manage` (admin/support) tetap dikecualikan.
 - **Verifikasi:** 49 test pada `SiakadLmsTest`, `MobileStaffApiTest`, dan `MobileMahasiswaApiTest` lolos (662 assertion), termasuk 7 regression test baru untuk geofence opsional, jendela/auto-close, rate limit, feature flag, dan presensi lintas kelas. `flutter analyze` bersih. Perubahan backend masih uncommitted/undeployed.
+
+### 7.6 Self-service SIMPEG, payroll detail, dan e-file (24 November 2026)
+
+Flutter sudah di-wire ke 15 endpoint baru `/api/v1/mobile/staff/...` (commit backend `0b87e53`). Semua endpoint v1 memakai `AttendanceService.getBaseUrl()`; master SIMPEG tetap lewat jalur lama `/api/simpeg/...` yang diupas `/v1` oleh `getApiBaseUrl()`.
+
+| Fitur mobile | Endpoint v1 | Aksi Flutter |
+|---|---|---|
+| `cuti` | `GET/POST /mobile/staff/simpeg/cuti` | `MobileStaffFormScreen` (jenis cuti dari `GET /simpeg/master-jenis-cuti`) |
+| `izin-kerja` | `GET/POST /mobile/staff/simpeg/izin-kerja` | `MobileStaffFormScreen` (master `GET /simpeg/master/jenis-izin-jam-kerja`) |
+| `surat-tugas` | `GET/POST /mobile/staff/simpeg/surat-tugas` | Form + detail; `POST .../lpj` untuk unggah LPJ (PDF ≤10 MB) |
+| `sk-pegawai` | `GET/POST /mobile/staff/simpeg/sk-pegawai` | Form dengan master `GET /simpeg/master/kategori-sk` |
+| `kompetensi` | `GET /mobile/staff/simpeg/kompetensi` | Daftar dengan query `?jenis=sertifikasi\|tes\|pelatihan` |
+| `payroll` | `GET .../payroll`, `.../payroll/{id}`, `.../payroll/{id}/slip` | Detail komponen gaji + unduh slip PDF biner |
+| `e-file` | `GET/POST /mobile/staff/arsip/e-file`, `.../{id}`, `.../{id}/download` | Detail, signed URL 900 detik, unggah dokumen |
+| `referral-spmb` | `GET/POST /mobile/staff/spmb/referral` | Kartu statistik dari `stats` pada item pertama |
+
+Catatan implementasi:
+
+- ID master **tidak pernah hardcode** — dropdown mengambil `id` dari endpoint master di atas. Durasi cuti `ditetapkan` memakai `tipe_durasi`/`durasi_hari` dari master yang sama.
+- `jenis_dokumen` e-file dan `jenis` kompetensi adalah nilai tetap domain (bukan tabel master), didefinisikan sekali sebagai `mobileEfileJenisDokumen` dan `mobileKompetensiJenis` di `mobile_feature_config.dart`.
+- Form baru memakai route `/mobile-staff/form/:featureCode`; detail memakai `/mobile-staff/detail/:featureCode/:id` dengan `extra: MobileFeatureItem` agar tidak perlu fetch ulang saat list sudah memuat data.
+- Slip PDF diunduh sebagai bytes, divalidasi header `%PDF`, nama file diambil dari `Content-Disposition`, lalu dibuka lewat `url_launcher` dengan fallback pesan path lokal.
+- E-file membuka signed URL via `url_launcher`; bila tidak ada handler, tautan disalin ke clipboard (masa berlaku 900 detik ditampilkan ke user).
+- Statistik referral memakai alias backend `total`/`mahasiswa_baru`, `qualified`/`dapat_direimburse`, dan `rewarded`/`sudah_direimburse`. Fitur `info-spmb` sengaja tetap tanpa endpoint.
+- Belum ada perubahan role/profile/Gate baru; administrator oversight dan academic participation tetap terpisah. Flutter **belum** di-commit atau di-push.
