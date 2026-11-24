@@ -24,6 +24,7 @@ class _ClassSessionScreenState extends State<ClassSessionScreen> {
   // Dynamic Rotating Token (Anti Titip-Hadir)
   Timer? _rotateTimer;
   int _secondsLeft = 30;
+  int _rotateIntervalSeconds = 30;
   bool _isRotating = false;
   String? _currentToken;
 
@@ -39,9 +40,15 @@ class _ClassSessionScreenState extends State<ClassSessionScreen> {
     super.dispose();
   }
 
+  /// Token yang boleh ditampilkan/scan hanya saat sesi masih berlangsung.
+  String _liveToken() {
+    if (_pertemuan?.status != 'berlangsung') return '';
+    return _currentToken ?? _pertemuan?.tokenAbsensi ?? '';
+  }
+
   void _startRotateTimer() {
     _rotateTimer?.cancel();
-    _secondsLeft = 30;
+    _secondsLeft = _rotateIntervalSeconds;
 
     if (_pertemuan?.status != 'berlangsung') return;
 
@@ -71,6 +78,10 @@ class _ClassSessionScreenState extends State<ClassSessionScreen> {
     String? errorMessage;
     try {
       final res = await AcademicService.rotateTokenPertemuan(widget.pertemuanId);
+      final serverInterval = int.tryParse(res['rotate_interval_seconds']?.toString() ?? '');
+      if (serverInterval != null && serverInterval >= 10) {
+        _rotateIntervalSeconds = serverInterval;
+      }
       final newToken = res['token_absensi']?.toString() ?? res['token']?.toString();
       if (newToken == null || newToken.isEmpty) {
         errorMessage = 'Server tidak mengirimkan token absensi baru.';
@@ -97,15 +108,20 @@ class _ClassSessionScreenState extends State<ClassSessionScreen> {
 
     if (mounted) {
       setState(() {
-        _secondsLeft = 30;
+        _secondsLeft = _rotateIntervalSeconds;
         _isRotating = false;
       });
-      if (errorMessage != null && !auto) {
+      if (errorMessage != null) {
+        // Kegagalan rotasi otomatis juga wajib terlihat: QR diam di layar
+        // tetapi sudah ditolak server saat mahasiswa scan.
+        final message = auto
+            ? 'Gagal memperbarui token otomatis: $errorMessage'
+            : errorMessage;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(errorMessage),
+            content: Text(message),
             backgroundColor: AppColors.error,
-            duration: const Duration(seconds: 2),
+            duration: const Duration(seconds: 3),
           ),
         );
       }
@@ -202,6 +218,11 @@ class _ClassSessionScreenState extends State<ClassSessionScreen> {
     }
     if (mounted) setState(() => _isSaving = false);
 
+    // Hentikan countdown segera setelah server mengonfirmasi penutupan sesi.
+    if (errorMessage == null) {
+      _rotateTimer?.cancel();
+    }
+
     if (mounted) {
       if (errorMessage == null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -224,8 +245,8 @@ class _ClassSessionScreenState extends State<ClassSessionScreen> {
   }
 
   void _showQrModal() {
-    final token = _currentToken ?? _pertemuan?.tokenAbsensi;
-    if (token == null || token.isEmpty) {
+    final tokenSaatIni = _liveToken();
+    if (tokenSaatIni.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Token presensi belum tersedia dari server.'),
@@ -273,7 +294,7 @@ class _ClassSessionScreenState extends State<ClassSessionScreen> {
                     padding: const EdgeInsets.all(12),
                     child: _LiveQrCode(
                       pertemuanId: widget.pertemuanId,
-                      tokenProvider: () => _currentToken ?? _pertemuan?.tokenAbsensi ?? '',
+                      tokenProvider: _liveToken,
                     ),
                   ),
                   const SizedBox(height: 14),
@@ -291,16 +312,13 @@ class _ClassSessionScreenState extends State<ClassSessionScreen> {
                           style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primaryDark),
                         ),
                         const SizedBox(height: 4),
-                        Text(
-                          token,
-                          style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: 4, color: AppColors.primaryDark),
-                        ),
+                        _LiveTokenLabel(tokenProvider: _liveToken),
                       ],
                     ),
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    'Token & QR berganti dinamis setiap 30 detik untuk mencegah titip-hadir mahasiswa.',
+                    'Token & QR berganti dinamis setiap $_rotateIntervalSeconds detik untuk mencegah titip-hadir mahasiswa.',
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
                   ),
@@ -582,7 +600,7 @@ class _ClassSessionScreenState extends State<ClassSessionScreen> {
                             ClipRRect(
                               borderRadius: BorderRadius.circular(4),
                               child: LinearProgressIndicator(
-                                value: _secondsLeft / 30.0,
+                                value: _secondsLeft / _rotateIntervalSeconds,
                                 backgroundColor: Colors.white.withValues(alpha: 0.25),
                                 valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
                                 minHeight: 4,
@@ -967,6 +985,54 @@ class _LiveQrCodeState extends State<_LiveQrCode> {
       size: 196,
       backgroundColor: Colors.white,
       errorCorrectionLevel: QrErrorCorrectLevel.M,
+    );
+  }
+}
+
+/// Angka token ikut mengikuti rotasi, sehingga tidak lagi berbeda dengan QR.
+class _LiveTokenLabel extends StatefulWidget {
+  final String Function() tokenProvider;
+
+  const _LiveTokenLabel({required this.tokenProvider});
+
+  @override
+  State<_LiveTokenLabel> createState() => _LiveTokenLabelState();
+}
+
+class _LiveTokenLabelState extends State<_LiveTokenLabel> {
+  Timer? _timer;
+  String _token = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _token = widget.tokenProvider();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      final token = widget.tokenProvider();
+      if (mounted && token != _token) {
+        setState(() => _token = token);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_token.isEmpty) {
+      return const Text(
+        'Sesi ditutup',
+        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textSecondary),
+      );
+    }
+
+    return Text(
+      _token,
+      style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: 4, color: AppColors.primaryDark),
     );
   }
 }

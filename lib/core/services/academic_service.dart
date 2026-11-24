@@ -345,6 +345,7 @@ class AcademicService {
     String? catatan,
     String? tanggal,
     String? jamMulai,
+    String? modePresensi,
   }) async {
     final token = await AttendanceService.getToken();
     final baseUrl = await AttendanceService.getBaseUrl();
@@ -358,6 +359,8 @@ class AcademicService {
           'catatan': catatan,
           'tanggal': tanggal,
           'jam_mulai': jamMulai,
+          // Default online agar kelas Zoom/daring tidak dipaksa geofence.
+          'mode_presensi': modePresensi ?? 'online',
         },
         options: Options(
           headers: token != null ? {'Authorization': 'Bearer $token'} : null,
@@ -378,6 +381,9 @@ class AcademicService {
   /// Putar ulang token absensi dinamis (token selalu berasal dari server RAG)
   static Future<Map<String, dynamic>> rotateTokenPertemuan(int pertemuanId) async {
     final token = await AttendanceService.getToken();
+    if (token == null || token.isEmpty) {
+      throw const ApiException('Sesi login berakhir. Silakan login kembali.');
+    }
     final baseUrl = await AttendanceService.getBaseUrl();
 
     try {

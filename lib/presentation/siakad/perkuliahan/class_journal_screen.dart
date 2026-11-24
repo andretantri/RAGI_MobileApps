@@ -52,6 +52,8 @@ class _ClassJournalScreenState extends State<ClassJournalScreen> {
   void _showStartMeetingModal(PertemuanItem item) {
     final materiController = TextEditingController(text: item.materi ?? '');
     final catatanController = TextEditingController(text: item.catatan ?? '');
+    // Default online: kelas Zoom/daring tidak perlu geofence mahasiswa.
+    String modePresensi = 'online';
     bool isSubmitting = false;
 
     showModalBottomSheet(
@@ -174,6 +176,39 @@ class _ClassJournalScreenState extends State<ClassJournalScreen> {
                     ),
                   ),
                 ),
+                const SizedBox(height: 14),
+
+                // Mode Presensi: default Online (Zoom/daring) tanpa geofence.
+                const Text(
+                  'Mode Presensi',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 6),
+                SegmentedButton<String>(
+                  segments: const [
+                    ButtonSegment(
+                      value: 'online',
+                      label: Text('Online / Zoom'),
+                      icon: Icon(Icons.videocam_outlined, size: 16),
+                    ),
+                    ButtonSegment(
+                      value: 'offline',
+                      label: Text('Tatap muka'),
+                      icon: Icon(Icons.location_on_outlined, size: 16),
+                    ),
+                  ],
+                  selected: {modePresensi},
+                  onSelectionChanged: (selection) {
+                    setModalState(() => modePresensi = selection.first);
+                  },
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  modePresensi == 'offline'
+                      ? 'Geofence kampus berlaku bila administrator mengaktifkannya.'
+                      : 'Mahasiswa dapat scan dari mana saja (termasuk Zoom).',
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                ),
                 const SizedBox(height: 20),
 
                 // Action Button
@@ -209,6 +244,7 @@ class _ClassJournalScreenState extends State<ClassJournalScreen> {
                                 pertemuanKe: item.pertemuanKe,
                                 materi: materi,
                                 catatan: catatanController.text.trim(),
+                                modePresensi: modePresensi,
                               );
                             } catch (e) {
                               errorMessage = e.toString();
