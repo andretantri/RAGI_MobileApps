@@ -7,6 +7,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/providers/attendance_provider.dart';
+import '../../core/providers/rag_module_provider.dart';
 import '../../core/providers/schedule_provider.dart';
 import '../../core/router/app_router.dart';
 import '../common/app_header.dart';
@@ -532,7 +533,17 @@ class ProfileScreen extends ConsumerWidget {
   }
 
   Widget _buildMenuSection(BuildContext context, WidgetRef ref) {
-    final isDosen = ref.watch(authProvider).user?.isDosen ?? false;
+    final auth = ref.watch(authProvider);
+    final isDosen = auth.user?.isDosen ?? false;
+    // Sama seperti tab Modul: katalog modul dari web RAG menjadi sumber
+    // kebenaran akses. Bila belum termuat, izinkan sinkronisasi lama agar
+    // menu tidak berkedip saat profil dibuka.
+    final moduleCodes = ref
+            .watch(myRagModulesProvider(auth.token))
+            .valueOrNull
+            ?.map((module) => module.code.toLowerCase())
+            .toSet() ??
+        <String>{};
     final sections = <Map<String, dynamic>>[
       {
         'section': 'Kepegawaian',
@@ -564,25 +575,33 @@ class ProfileScreen extends ConsumerWidget {
         ],
       },
       {
-        'section': 'Akademik, Riset & Referral',
+        // Tendik tidak punya jadwal mengajar/nilai/bimbingan, jadi judul
+        // bagian ini cukup menyebut referral saja.
+        'section': isDosen ? 'Akademik, Riset & Referral' : 'Layanan & Referral',
         'items': <Map<String, dynamic>>[
           {
             'icon': Icons.school_outlined,
             'label': 'Jadwal Mengajar',
             'color': AppColors.siakad,
             'route': '/schedule',
+            'dosenOnly': true,
+            'module': 'siakad',
           },
           {
             'icon': Icons.assignment_turned_in_outlined,
             'label': 'Input Nilai (KHS & OBE)',
             'color': const Color(0xFF0284C7),
             'route': '/siakad/grading',
+            'dosenOnly': true,
+            'module': 'siakad',
           },
           {
             'icon': Icons.supervisor_account_outlined,
             'label': 'Bimbingan Akademik (DPA)',
             'color': const Color(0xFF059669),
             'route': '/siakad/advising',
+            'dosenOnly': true,
+            'module': 'siakad',
           },
           {
             'icon': Icons.science_outlined,
@@ -590,6 +609,7 @@ class ProfileScreen extends ConsumerWidget {
             'color': AppColors.sippm,
             'route': '/features/proposal-hibah',
             'dosenOnly': true,
+            'module': 'sippm',
           },
           {
             'icon': Icons.menu_book_outlined,
@@ -597,8 +617,10 @@ class ProfileScreen extends ConsumerWidget {
             'color': const Color(0xFF6366F1),
             'route': '/features/bahan-ajar',
             'dosenOnly': true,
+            'module': 'lms',
           },
           {
+            // Referral bersifat self-service untuk semua dosen & tendik.
             'icon': Icons.card_giftcard_outlined,
             'label': 'Referral SPMB',
             'color': AppColors.spmb,
@@ -609,6 +631,13 @@ class ProfileScreen extends ConsumerWidget {
       {
         'section': 'Pengaturan & Info',
         'items': <Map<String, dynamic>>[
+          {
+            'icon': Icons.apps_outlined,
+            'label': 'Buka Menu Modul',
+            'subtitle': 'Sesuai akses yang diberikan web RAG',
+            'color': AppColors.primaryMid,
+            'action': 'open_modules',
+          },
           {
             'icon': Icons.security_rounded,
             'label': 'Keamanan Biometrik',
@@ -645,9 +674,16 @@ class ProfileScreen extends ConsumerWidget {
           ...sections.map((sec) {
             final allItems =
                 (sec['items'] as List).cast<Map<String, dynamic>>();
-            final items = allItems
-                .where((item) => item['dosenOnly'] != true || isDosen)
-                .toList();
+            final items = allItems.where((item) {
+              if (item['dosenOnly'] == true && !isDosen) return false;
+              final moduleCode = item['module'] as String?;
+              if (moduleCode != null &&
+                  moduleCodes.isNotEmpty &&
+                  !moduleCodes.contains(moduleCode)) {
+                return false;
+              }
+              return true;
+            }).toList();
             if (items.isEmpty) return const SizedBox.shrink();
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -687,11 +723,19 @@ class ProfileScreen extends ConsumerWidget {
                                 ),
                                 title: Text(item['label'] as String,
                                     style: AppTextStyles.bodyMedium),
+                                subtitle: item['subtitle'] != null
+                                    ? Text(item['subtitle'] as String,
+                                        style: AppTextStyles.caption)
+                                    : null,
                                 trailing: const Icon(Icons.chevron_right,
                                     size: 18, color: AppColors.textSecondary),
                                 onTap: () {
                                   if (item['action'] == 'system_info') {
                                     _showSystemInfoModal(context);
+                                    return;
+                                  }
+                                  if (item['action'] == 'open_modules') {
+                                    context.go('/modules');
                                     return;
                                   }
                                   final label = item['label'] as String? ?? '';
