@@ -25,6 +25,10 @@ Fitur referral tendik memerlukan backend RAG `main` **829e473** (`fix(mobile): r
 - `versionCode`: `31`
 - Android: release signed dengan upload keystore, minify & resource shrinking aktif, dukungan 16 KB page size dipertahankan.
 - Aset: `app-release.apk` (universal) dan `app-release.aab` (Android App Bundle).
+- SHA-256:
+  - `app-release.apk`: `0a5e4a917a98d1ecf0abdaf47f3ae1e0ca85ee01bc5e2d7a32760c667e0dfb51`
+  - `app-release.aab`: `6d131046533527603559a12d6ff0b01475e97cbe64121f20b55728766e836f18`
+- Sertifikat penandatangan: `CN=Politeknik Indonusa, OU=IT, O=Politeknik Indonusa Surakarta` (SHA-256 `FB:17:50:06:EA:4A:04:AD:76:F1:34:9E:28:5A:2B:4B:AE:CC:75:84:F2:AF:31:22:9B:73:DD:76:BE:3A:74:25`).
 
 ### Verifikasi
 
