@@ -835,7 +835,7 @@ class ProfileScreen extends ConsumerWidget {
             child: Column(
               children: [
                 Text(
-                  'MyIn-U Staff • Versi 1.1.0 (Build 30)',
+                  'MyIn-U Staff • Versi 1.1.1 (Build 31)',
                   style: AppTextStyles.caption.copyWith(
                     color: AppColors.textSecondary,
                     fontWeight: FontWeight.w600,
@@ -952,7 +952,7 @@ class ProfileScreen extends ConsumerWidget {
                   Divider(height: 1, color: AppColors.divider),
                   _SystemInfoRow(
                     label: 'Kode Build (Version Code)',
-                    value: 'Build 30 (Release)',
+                    value: 'Build 31 (Release)',
                   ),
                   Divider(height: 1, color: AppColors.divider),
                   _SystemInfoRow(
