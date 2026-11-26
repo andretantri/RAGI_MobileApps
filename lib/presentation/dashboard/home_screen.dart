@@ -571,8 +571,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final hasOut = state.hasClockedOut;
     final isDone = state.isCompleted;
 
-    final clockInText = state.clockInTime ?? '-- : --';
-    final clockOutText = state.clockOutTime ?? '-- : --';
+    final clockInText =
+        AttendanceNotifier.formatTime(state.clockInTime) ?? '-- : --';
+    final clockOutText =
+        AttendanceNotifier.formatTime(state.clockOutTime) ?? '-- : --';
 
     final officeName = state.nearestOffice?.name ?? '-';
     final distanceText = state.currentDistanceMeters != null
@@ -721,28 +723,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ),
                       ),
                       const SizedBox(width: 10),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'MASUK',
-                            style: AppTextStyles.caption.copyWith(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.4,
-                              color: AppColors.textSecondary,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'MASUK',
+                              style: AppTextStyles.caption.copyWith(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.4,
+                                color: AppColors.textSecondary,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 1),
-                          Text(
-                            clockInText,
-                            style: AppTextStyles.titleMedium.copyWith(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: hasIn ? AppColors.textPrimary : AppColors.textHint,
+                            const SizedBox(height: 1),
+                            Text(
+                              clockInText,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTextStyles.titleMedium.copyWith(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: hasIn ? AppColors.textPrimary : AppColors.textHint,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -776,28 +782,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ),
                       ),
                       const SizedBox(width: 10),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'PULANG',
-                            style: AppTextStyles.caption.copyWith(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.4,
-                              color: AppColors.textSecondary,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'PULANG',
+                              style: AppTextStyles.caption.copyWith(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.4,
+                                color: AppColors.textSecondary,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 1),
-                          Text(
-                            clockOutText,
-                            style: AppTextStyles.titleMedium.copyWith(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: hasOut ? AppColors.textPrimary : AppColors.textHint,
+                            const SizedBox(height: 1),
+                            Text(
+                              clockOutText,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTextStyles.titleMedium.copyWith(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: hasOut ? AppColors.textPrimary : AppColors.textHint,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -941,7 +951,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Skor wajah: ${FaceVerificationInfo.formatPercent(state.faceSimilarityScore)} · minimum server: ${FaceVerificationInfo.formatPercent(state.minimumFaceSimilarity)}',
+                          state.minimumFaceSimilarity != null
+                              ? 'Skor wajah: ${FaceVerificationInfo.formatPercent(state.faceSimilarityScore)} · minimum server: ${FaceVerificationInfo.formatPercent(state.minimumFaceSimilarity)}'
+                              : 'Skor wajah: ${FaceVerificationInfo.formatPercent(state.faceSimilarityScore)}',
                           style: AppTextStyles.caption.copyWith(
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
@@ -984,6 +996,76 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
           const SizedBox(height: 14),
 
+          if (state.isOffForNationalHoliday && !hasIn) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: AppColors.infoLight,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppColors.primary.withValues(alpha: 0.25),
+                ),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(
+                    Icons.event_available_rounded,
+                    color: AppColors.primary,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Tidak wajib absen karena libur nasional${state.nationalHolidayName != null && state.nationalHolidayName!.isNotEmpty ? ' (${state.nationalHolidayName})' : ''}. Tetap dapat melakukan absen bila lembur atau piket.',
+                      style: AppTextStyles.caption.copyWith(
+                        fontSize: 11,
+                        color: AppColors.primaryDark,
+                        fontWeight: FontWeight.w500,
+                        height: 1.35,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+          ] else if (state.isDutyOnHoliday && !hasIn) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: AppColors.warningLight,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppColors.warning.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(
+                    Icons.work_history_rounded,
+                    color: AppColors.warning,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Tugas Shift Hari Libur Nasional${state.nationalHolidayName != null && state.nationalHolidayName!.isNotEmpty ? ' (${state.nationalHolidayName})' : ''} — Shift Anda tetap terjadwal masuk hari ini.',
+                      style: AppTextStyles.caption.copyWith(
+                        fontSize: 11,
+                        color: const Color(0xFF92400E),
+                        fontWeight: FontWeight.w500,
+                        height: 1.35,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
+
           // Tombol Aksi Presensi Wajah Kamera Dinamis
           SizedBox(
             width: double.infinity,
@@ -1010,7 +1092,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ? 'Presensi Hari Ini Lengkap'
                     : hasIn
                         ? 'Absen Wajah Pulang'
-                        : 'Absen Wajah Masuk',
+                        : state.isOffForNationalHoliday
+                            ? 'Absen Wajah (Opsional • Libur)'
+                            : 'Absen Wajah Masuk',
                 style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5),
               ),
               style: ElevatedButton.styleFrom(

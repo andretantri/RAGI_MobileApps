@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/simpeg_model.dart';
+import '../services/home_widget_service.dart';
 import '../services/simpeg_service.dart';
 import 'auth_provider.dart';
 
@@ -75,7 +76,10 @@ final announcementCategoryFilterProvider = StateProvider<String>((ref) => 'semua
 /// Provider Pengumuman Kampus
 final announcementsProvider = FutureProvider<List<CampusAnnouncementItem>>((ref) async {
   final category = ref.watch(announcementCategoryFilterProvider);
-  return await SimpegService.fetchAnnouncements(
+  final items = await SimpegService.fetchAnnouncements(
     category: category == 'semua' ? null : category,
   );
+  final isDosen = ref.read(authProvider).user?.isDosen;
+  await HomeWidgetService.syncAnnouncements(items, isDosen: isDosen);
+  return items;
 });

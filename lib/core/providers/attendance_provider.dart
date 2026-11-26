@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/face_verification_info.dart';
 import '../services/attendance_service.dart';
 import '../services/device_security_service.dart';
+import '../services/local_notification_service.dart';
 import '../services/location_service.dart';
 import '../services/notification_service.dart';
 import '../theme/app_colors.dart';
@@ -26,6 +27,12 @@ class AttendanceState {
   final String? faceVerificationMessage;
   final String? faceThresholdSource;
   final String? faceThresholdUpdatedAt;
+  final bool isNationalHoliday;
+  final bool appliesNationalHolidays;
+  final bool isDutyOnHoliday;
+  final String? nationalHolidayName;
+  final String? shiftStartTime;
+  final String? shiftEndTime;
 
   const AttendanceState({
     this.isLoading = false,
@@ -45,6 +52,12 @@ class AttendanceState {
     this.faceVerificationMessage,
     this.faceThresholdSource,
     this.faceThresholdUpdatedAt,
+    this.isNationalHoliday = false,
+    this.appliesNationalHolidays = true,
+    this.isDutyOnHoliday = false,
+    this.nationalHolidayName,
+    this.shiftStartTime,
+    this.shiftEndTime,
   });
 
   static const Object _unset = Object();
@@ -52,6 +65,8 @@ class AttendanceState {
   bool get hasClockedIn => clockInTime != null && clockInTime!.isNotEmpty;
   bool get hasClockedOut => clockOutTime != null && clockOutTime!.isNotEmpty;
   bool get isCompleted => hasClockedIn && hasClockedOut;
+  bool get isOffForNationalHoliday =>
+      isNationalHoliday && appliesNationalHolidays;
 
   AttendanceState copyWith({
     bool? isLoading,
@@ -71,6 +86,12 @@ class AttendanceState {
     Object? faceVerificationMessage = _unset,
     Object? faceThresholdSource = _unset,
     Object? faceThresholdUpdatedAt = _unset,
+    bool? isNationalHoliday,
+    bool? appliesNationalHolidays,
+    bool? isDutyOnHoliday,
+    Object? nationalHolidayName = _unset,
+    Object? shiftStartTime = _unset,
+    Object? shiftEndTime = _unset,
   }) {
     return AttendanceState(
       isLoading: isLoading ?? this.isLoading,
@@ -101,6 +122,19 @@ class AttendanceState {
       faceThresholdUpdatedAt: identical(faceThresholdUpdatedAt, _unset)
           ? this.faceThresholdUpdatedAt
           : faceThresholdUpdatedAt as String?,
+      isNationalHoliday: isNationalHoliday ?? this.isNationalHoliday,
+      appliesNationalHolidays:
+          appliesNationalHolidays ?? this.appliesNationalHolidays,
+      isDutyOnHoliday: isDutyOnHoliday ?? this.isDutyOnHoliday,
+      nationalHolidayName: identical(nationalHolidayName, _unset)
+          ? this.nationalHolidayName
+          : nationalHolidayName as String?,
+      shiftStartTime: identical(shiftStartTime, _unset)
+          ? this.shiftStartTime
+          : shiftStartTime as String?,
+      shiftEndTime: identical(shiftEndTime, _unset)
+          ? this.shiftEndTime
+          : shiftEndTime as String?,
     );
   }
 }
@@ -108,6 +142,32 @@ class AttendanceState {
 class AttendanceNotifier extends StateNotifier<AttendanceState> {
   AttendanceNotifier() : super(const AttendanceState()) {
     init();
+  }
+
+  /// Memformat string waktu dari server (misal ISO-8601 UTC `2026-11-26T01:31:22Z`
+  /// atau `08:31:22`) menjadi format ringkas lokal `HH:mm WIB`.
+  static String? formatTime(String? raw) {
+    if (raw == null) return null;
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) return null;
+
+    final parsed = DateTime.tryParse(trimmed);
+    if (parsed != null) {
+      final local = parsed.toLocal();
+      final hh = local.hour.toString().padLeft(2, '0');
+      final mm = local.minute.toString().padLeft(2, '0');
+      return '$hh:$mm WIB';
+    }
+
+    final timeMatch =
+        RegExp(r'^(\d{1,2}):(\d{2})(?::\d{2})?').firstMatch(trimmed);
+    if (timeMatch != null) {
+      final hh = timeMatch.group(1)!.padLeft(2, '0');
+      final mm = timeMatch.group(2)!;
+      return '$hh:$mm WIB';
+    }
+
+    return trimmed;
   }
 
   List<OfficeLocationModel> _allOffices = [];
@@ -176,12 +236,22 @@ class AttendanceNotifier extends StateNotifier<AttendanceState> {
       }
 
       final att = data['attendance'] as Map<String, dynamic>?;
-      final clockIn = att?['clock_in']?.toString();
-      final clockOut = att?['clock_out']?.toString();
+      final clockIn = formatTime(att?['clock_in']?.toString());
+      final clockOut = formatTime(att?['clock_out']?.toString());
       final attStatus = att?['status']?.toString();
       final faceInfo = res.faceVerification.hasData
           ? res.faceVerification
           : FaceVerificationInfo.fromJson(att ?? data);
+
+      final scheduleMap = data['schedule'] as Map<String, dynamic>?;
+      final isNationalHoliday = data['is_national_holiday'] == true;
+      final appliesNationalHolidays = data['applies_national_holidays'] != false;
+      final isDutyOnHoliday = data['is_duty_on_holiday'] == true;
+      final holidayMap = data['national_holiday'] as Map<String, dynamic>?;
+      final nationalHolidayName = holidayMap?['name']?.toString();
+      final shiftStartTime = scheduleMap?['start_time']?.toString();
+      final shiftEndTime = scheduleMap?['end_time']?.toString();
+      final isDayOff = scheduleMap?['is_day_off'] == true;
 
       state = state.copyWith(
         isLoading: false,
@@ -199,6 +269,19 @@ class AttendanceNotifier extends StateNotifier<AttendanceState> {
         faceVerificationMessage: faceInfo.message,
         faceThresholdSource: faceInfo.source,
         faceThresholdUpdatedAt: faceInfo.updatedAt,
+        isNationalHoliday: isNationalHoliday,
+        appliesNationalHolidays: appliesNationalHolidays,
+        isDutyOnHoliday: isDutyOnHoliday,
+        nationalHolidayName: nationalHolidayName,
+        shiftStartTime: shiftStartTime,
+        shiftEndTime: shiftEndTime,
+      );
+
+      // Sinkronkan jadwal alarm notifikasi lokal 15 menit sebelum masuk & pulang
+      await LocalNotificationService.instance.syncAttendanceReminders(
+        shiftStartTime: shiftStartTime,
+        shiftEndTime: shiftEndTime,
+        isDayOffToday: isDayOff || (isNationalHoliday && appliesNationalHolidays),
       );
     } catch (e) {
       debugPrint('[AttendanceNotifier] fetchTodayStatus error: $e');
@@ -305,7 +388,7 @@ class AttendanceNotifier extends StateNotifier<AttendanceState> {
         : FaceVerificationInfo.fromMessage(response.message);
 
     if (response.success) {
-      final timeStr = response.data?['clock_in']?.toString() ??
+      final timeStr = formatTime(response.data?['clock_in']?.toString()) ??
           '${DateTime.now().hour.toString().padLeft(2, '0')}:${DateTime.now().minute.toString().padLeft(2, '0')} WIB';
       state = state.copyWith(
         isSubmitting: false,
@@ -389,7 +472,7 @@ class AttendanceNotifier extends StateNotifier<AttendanceState> {
         : FaceVerificationInfo.fromMessage(response.message);
 
     if (response.success) {
-      final timeStr = response.data?['clock_out']?.toString() ??
+      final timeStr = formatTime(response.data?['clock_out']?.toString()) ??
           '${DateTime.now().hour.toString().padLeft(2, '0')}:${DateTime.now().minute.toString().padLeft(2, '0')} WIB';
       state = state.copyWith(
         isSubmitting: false,

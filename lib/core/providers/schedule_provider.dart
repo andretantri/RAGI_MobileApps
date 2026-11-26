@@ -1,6 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/teaching_schedule_model.dart';
+import '../services/home_widget_service.dart';
+import '../services/local_notification_service.dart';
 import '../services/schedule_service.dart';
+import '../services/simpeg_service.dart';
 import 'auth_provider.dart';
 
 class ScheduleState {
@@ -50,6 +53,19 @@ class ScheduleNotifier extends StateNotifier<ScheduleState> {
 
     final authState = ref.read(authProvider);
     final user = authState.user;
+    if (user != null && !user.isDosen) {
+      await HomeWidgetService.syncTeachingSchedule(
+        schedule: null,
+        isDosen: false,
+      );
+      try {
+        final announcements = await SimpegService.fetchAnnouncements();
+        await HomeWidgetService.syncAnnouncements(
+          announcements,
+          isDosen: false,
+        );
+      } catch (_) {}
+    }
     // SIAKAD mengenali dosen berdasarkan NIDN. Kode pegawai (NIP) tetap
     // dikirim sebagai fallback/parameter tambahan untuk backend lama.
     final nidn = (user?.nidn != null && user!.nidn.isNotEmpty)
@@ -78,8 +94,29 @@ class ScheduleNotifier extends StateNotifier<ScheduleState> {
           schedule: fresh,
           errorMessage: null,
         );
+        final isDosen = user?.isDosen ?? false;
+        await HomeWidgetService.syncTeachingSchedule(
+          schedule: fresh,
+          isDosen: isDosen,
+        );
+        if (isDosen) {
+          final reminderClasses = fresh.allClasses
+              .map((c) => (
+                    dayOfWeek: _hariToWeekday(c.hari),
+                    startTime: c.startTime,
+                    courseName: c.courseName,
+                    room: c.room,
+                  ))
+              .toList();
+          await LocalNotificationService.instance
+              .syncTeachingReminders(reminderClasses);
+        }
       } else if (mounted) {
         state = state.copyWith(isLoading: false);
+        await HomeWidgetService.syncTeachingSchedule(
+          schedule: state.schedule,
+          isDosen: user?.isDosen ?? false,
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -97,6 +134,30 @@ class ScheduleNotifier extends StateNotifier<ScheduleState> {
 
   void reset() {
     state = const ScheduleState();
+    HomeWidgetService.clearWidget();
+  }
+
+  static int _hariToWeekday(String hari) {
+    switch (hari.trim().toLowerCase()) {
+      case 'senin':
+        return DateTime.monday;
+      case 'selasa':
+        return DateTime.tuesday;
+      case 'rabu':
+        return DateTime.wednesday;
+      case 'kamis':
+        return DateTime.thursday;
+      case 'jumat':
+      case "jum'at":
+        return DateTime.friday;
+      case 'sabtu':
+        return DateTime.saturday;
+      case 'minggu':
+      case 'ahad':
+        return DateTime.sunday;
+      default:
+        return DateTime.monday;
+    }
   }
 }
 

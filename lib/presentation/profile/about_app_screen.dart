@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/constants/app_release_info.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../common/app_header.dart';
@@ -192,7 +193,7 @@ class _AboutAppScreenState extends State<AboutAppScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -287,7 +288,7 @@ class _AboutAppScreenState extends State<AboutAppScreen>
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            'Versi 1.1.1 (Build 31) • Ekosistem SIAKAD & SIMPEG Terpadu',
+                            AppReleaseInfo.aboutHeaderLabel,
                             style: TextStyle(
                               color: Colors.white.withValues(alpha: 0.85),
                               fontSize: 11.5,
@@ -318,6 +319,7 @@ class _AboutAppScreenState extends State<AboutAppScreen>
               tabs: [
                 Tab(text: 'Fitur Aktif (${_activeFeatures.length})'),
                 Tab(text: 'Roadmap (${_developmentFeatures.length})'),
+                Tab(text: 'Log Update (${AppReleaseInfo.changelog.length})'),
               ],
             ),
           ),
@@ -359,6 +361,99 @@ class _AboutAppScreenState extends State<AboutAppScreen>
                       badge: item['status'] as String,
                       badgeColor: item['color'] as Color,
                       isActive: false,
+                    );
+                  },
+                ),
+
+                // Tab 3: Log Update / Riwayat Pembaruan Aplikasi
+                ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
+                  itemCount: AppReleaseInfo.changelog.length,
+                  separatorBuilder: (ctx, i) => const SizedBox(height: 12),
+                  itemBuilder: (ctx, i) {
+                    final entry = AppReleaseInfo.changelog[i];
+                    return Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: i == 0
+                              ? AppColors.primary.withValues(alpha: 0.35)
+                              : AppColors.divider,
+                          width: i == 0 ? 1.2 : 0.8,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 9, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: i == 0
+                                      ? AppColors.primary.withValues(alpha: 0.12)
+                                      : AppColors.surfaceVariant,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  entry.badge,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: i == 0
+                                        ? AppColors.primary
+                                        : AppColors.textSecondary,
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                entry.date,
+                                style: AppTextStyles.caption.copyWith(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            entry.title,
+                            style: AppTextStyles.titleMedium.copyWith(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13.5,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          ...entry.highlights.map(
+                            (h) => Padding(
+                              padding: const EdgeInsets.only(bottom: 4),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('• ',
+                                      style: TextStyle(
+                                          color: AppColors.primary,
+                                          fontWeight: FontWeight.w700)),
+                                  Expanded(
+                                    child: Text(
+                                      h,
+                                      style: AppTextStyles.bodySmall.copyWith(
+                                        color: AppColors.textSecondary,
+                                        height: 1.4,
+                                        fontSize: 11.5,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     );
                   },
                 ),

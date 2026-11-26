@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/providers/auth_provider.dart';
 import '../../core/services/local_notification_service.dart';
 import '../common/app_header.dart';
 
@@ -72,6 +73,11 @@ class _NotificationPreferencesScreenState
       await prefs.setBool(key, val);
     } else if (val is int) {
       await prefs.setInt(key, val);
+    }
+    if (key.startsWith('notif_attendance') ||
+        key == 'notif_sound' ||
+        key == 'notif_vibration') {
+      await LocalNotificationService.instance.syncAttendanceReminders();
     }
   }
 
@@ -389,6 +395,8 @@ class _NotificationPreferencesScreenState
 
   @override
   Widget build(BuildContext context) {
+    final isDosen = ref.watch(authProvider).user?.isDosen ?? true;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SingleChildScrollView(
@@ -424,7 +432,9 @@ class _NotificationPreferencesScreenState
                   Padding(
                     padding: const EdgeInsets.only(left: 32),
                     child: Text(
-                      'Atur pengingat jadwal mengajar, presensi kerja, & batas tugas.',
+                      isDosen
+                          ? 'Atur pengingat jadwal mengajar, presensi kerja, & batas tugas.'
+                          : 'Atur pengingat presensi kerja & pengumuman resmi kampus.',
                       style: AppTextStyles.bodySmall
                           .copyWith(color: Colors.white70),
                     ),
@@ -484,9 +494,10 @@ class _NotificationPreferencesScreenState
 
                   const SizedBox(height: 20),
 
-                  // SEKSI 1: JADWAL MENGAJAR
-                  _buildSectionHeader('PENGINGAT JADWAL MENGAJAR'),
-                  _buildCard(
+                  // SEKSI 1: JADWAL MENGAJAR (Khusus Dosen Pengajar / RBAC)
+                  if (isDosen) ...[
+                    _buildSectionHeader('PENGINGAT JADWAL MENGAJAR'),
+                    _buildCard(
                     children: [
                       SwitchListTile(
                         contentPadding: EdgeInsets.zero,
@@ -558,9 +569,9 @@ class _NotificationPreferencesScreenState
                         ),
                       ],
                     ],
-                  ),
-
-                  const SizedBox(height: 18),
+                    ),
+                    const SizedBox(height: 18),
+                  ],
 
                   // SEKSI 2: PRESENSI KERJA
                   _buildSectionHeader('PENGINGAT PRESENSI KERJA'),
@@ -606,9 +617,10 @@ class _NotificationPreferencesScreenState
 
                   const SizedBox(height: 18),
 
-                  // SEKSI 3: TUGAS & DEADLINE
-                  _buildSectionHeader('PENGINGAT TUGAS & DEADLINE'),
-                  _buildCard(
+                  // SEKSI 3: TUGAS & DEADLINE (Khusus Dosen Pengajar / RBAC)
+                  if (isDosen) ...[
+                    _buildSectionHeader('PENGINGAT TUGAS & DEADLINE'),
+                    _buildCard(
                     children: [
                       SwitchListTile(
                         contentPadding: EdgeInsets.zero,
@@ -670,9 +682,9 @@ class _NotificationPreferencesScreenState
                         ),
                       ],
                     ],
-                  ),
-
-                  const SizedBox(height: 18),
+                    ),
+                    const SizedBox(height: 18),
+                  ],
 
                   // SEKSI 4: PENGUMUMAN KAMPUS
                   _buildSectionHeader('INFORMASI & PENGUMUMAN'),

@@ -55,6 +55,32 @@
             android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver"
             android:exported="false" />
 
+        <!-- Widget Home Screen Adaptif (Jadwal Mengajar Dosen / Pengumuman Pegawai) -->
+        <receiver
+            android:name=".TeachingScheduleWidgetProvider"
+            android:exported="true"
+            android:label="MyIn-U Staff (Jadwal &amp; Info)">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/teaching_schedule_widget_info" />
+        </receiver>
+
+        <!-- Widget Pengumuman Kampus (Tersedia untuk semua role) -->
+        <receiver
+            android:name=".CampusAnnouncementWidgetProvider"
+            android:exported="true"
+            android:label="Pengumuman Kampus MyIn-U">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/teaching_schedule_widget_info" />
+        </receiver>
+
         <!-- Ikon default untuk push notification (digunakan bila FCM ditambahkan). -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"

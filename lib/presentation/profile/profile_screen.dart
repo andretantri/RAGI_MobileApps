@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../core/constants/app_release_info.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/providers/auth_provider.dart';
@@ -835,7 +836,7 @@ class ProfileScreen extends ConsumerWidget {
             child: Column(
               children: [
                 Text(
-                  'MyIn-U Staff • Versi 1.1.1 (Build 31)',
+                  AppReleaseInfo.footerLabel,
                   style: AppTextStyles.caption.copyWith(
                     color: AppColors.textSecondary,
                     fontWeight: FontWeight.w600,
@@ -946,13 +947,13 @@ class ProfileScreen extends ConsumerWidget {
                 children: [
                   _SystemInfoRow(
                     label: 'Versi Aplikasi',
-                    value: 'v1.1.0',
+                    value: 'v${AppReleaseInfo.version}',
                     isHighlight: true,
                   ),
                   Divider(height: 1, color: AppColors.divider),
                   _SystemInfoRow(
                     label: 'Kode Build (Version Code)',
-                    value: 'Build 31 (Release)',
+                    value: AppReleaseInfo.buildLabel,
                   ),
                   Divider(height: 1, color: AppColors.divider),
                   _SystemInfoRow(
@@ -982,26 +983,103 @@ class ProfileScreen extends ConsumerWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              height: 46,
-              child: ElevatedButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+            const SizedBox(height: 14),
+            if (AppReleaseInfo.changelog.isNotEmpty) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.infoLight,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: AppColors.primary.withValues(alpha: 0.2),
                   ),
                 ),
-                child: const Text(
-                  'Tutup',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Pembaruan Terbaru (${AppReleaseInfo.changelog.first.badge})',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.primaryDark,
+                          ),
+                        ),
+                        Text(
+                          AppReleaseInfo.changelog.first.date,
+                          style: const TextStyle(
+                            fontSize: 10.5,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    ...AppReleaseInfo.changelog.first.highlights.take(3).map(
+                          (item) => Padding(
+                            padding: const EdgeInsets.only(bottom: 3),
+                            child: Text(
+                              '• $item',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: AppColors.textPrimary,
+                                height: 1.35,
+                              ),
+                            ),
+                          ),
+                        ),
+                  ],
                 ),
               ),
+              const SizedBox(height: 14),
+            ],
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () {
+                      Navigator.of(ctx).pop();
+                      context.push('/profile/about');
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                      side: const BorderSide(color: AppColors.primary),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      'Log Update Lengkap',
+                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      'Tutup',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),

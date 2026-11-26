@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:myinu_staff/core/providers/auth_provider.dart';
 import 'package:myinu_staff/presentation/profile/notification_preferences_screen.dart';
 
 void main() {
@@ -84,6 +85,48 @@ void main() {
 
       // Hanya satu notifikasi sistem yang dipancarkan (tanpa overlay ganda).
       await tester.pump(const Duration(seconds: 5));
+    });
+
+    testWidgets('Tendik (non-dosen) hides teaching and task reminder sections (RBAC)',
+        (tester) async {
+      tester.view.physicalSize = const Size(800, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      final tendik = const UserModel(
+        id: 2,
+        name: 'Staf Tendik',
+        email: 'tendik@poltekindonusa.ac.id',
+        nip: '19900101',
+        position: 'Staf Administrasi',
+        department: 'BAAK',
+        isDosen: false,
+        avatarInitial: 'ST',
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authProvider.overrideWith((ref) => AuthNotifier()..state = AuthState(
+                  isAuthenticated: true,
+                  user: tendik,
+                )),
+          ],
+          child: const MaterialApp(
+            home: NotificationPreferencesScreen(),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('PENGINGAT PRESENSI KERJA'), findsOneWidget);
+      expect(find.text('INFORMASI & PENGUMUMAN'), findsOneWidget);
+      expect(find.text('PENGINGAT JADWAL MENGAJAR'), findsNothing);
+      expect(find.text('PENGINGAT TUGAS & DEADLINE'), findsNothing);
     });
   });
 }

@@ -205,15 +205,13 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
     }
   }
 
-  void _reset() {
+  Future<void> _reset() async {
     setState(() {
       _hasScanned = false;
       _loading = false;
       _attendanceResult = null;
     });
-    try {
-      _scannerController.start();
-    } catch (_) {}
+    await _openFaceCapture();
   }
 
   @override
@@ -515,6 +513,30 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
                 ),
                 child: Column(
                   children: [
+                    if (attState.isOffForNationalHoliday && !attState.hasClockedIn) ...[
+                      Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0B52B3).withValues(alpha: 0.25),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: const Color(0xFF38BDF8).withValues(alpha: 0.45),
+                          ),
+                        ),
+                        child: Text(
+                          'Libur Nasional${attState.nationalHolidayName != null && attState.nationalHolidayName!.isNotEmpty ? ' (${attState.nationalHolidayName})' : ''} — Tidak wajib absen',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Color(0xFFBAE6FD),
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
                     // Tombol Presensi Langsung Kamera & GPS (Fitur indonusa/absen)
                     SizedBox(
                       width: double.infinity,
@@ -722,7 +744,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
                           ),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
-                        child: const Text('Scan Lagi'),
+                        child: Text(_isSuccess ? 'Scan Lagi' : 'Scan Wajah Ulang'),
                       ),
                     ),
                     const SizedBox(width: 12),
