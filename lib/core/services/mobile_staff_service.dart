@@ -244,6 +244,57 @@ class MobileStaffService {
     }
   }
 
+  /// Perbarui metadata atau berkas dokumen e-file pribadi.
+  static Future<MobileFeatureItem> updateEfile({
+    required String id,
+    required String namaDokumen,
+    required String jenisDokumen,
+    XFile? file,
+  }) async {
+    final baseUrl = await AttendanceService.getBaseUrl();
+    final options = await _options();
+    final form = FormData.fromMap({
+      'nama_dokumen': namaDokumen.trim(),
+      'jenis_dokumen': jenisDokumen.trim(),
+    });
+    if (file != null) {
+      form.files.add(
+        MapEntry(
+          'file',
+          await MultipartFile.fromFile(file.path, filename: file.name),
+        ),
+      );
+    }
+
+    try {
+      final response = await _dio.post(
+        '$baseUrl/mobile/staff/arsip/e-file/$id',
+        data: form,
+        options: options.copyWith(contentType: 'multipart/form-data'),
+      );
+      final data = _extractMap(response.data);
+      if (data == null) {
+        throw const ApiException('Server tidak mengirimkan data dokumen.');
+      }
+      return MobileFeatureItem.fromJson(data);
+    } catch (e) {
+      throw _exception(e, 'Gagal memperbarui dokumen e-file.');
+    }
+  }
+
+  /// Hapus dokumen e-file pribadi dari server RAG.
+  static Future<void> deleteEfile(String id) async {
+    final baseUrl = await AttendanceService.getBaseUrl();
+    try {
+      await _dio.delete(
+        '$baseUrl/mobile/staff/arsip/e-file/$id',
+        options: await _options(),
+      );
+    } catch (e) {
+      throw _exception(e, 'Gagal menghapus dokumen e-file.');
+    }
+  }
+
   static Map<String, dynamic>? _extractMap(dynamic payload) {
     if (payload is Map) {
       final data = payload['data'];

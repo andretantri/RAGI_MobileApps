@@ -160,6 +160,12 @@ class MobileFeatureListScreen extends ConsumerWidget {
                     final stats = rawStats is Map
                         ? MobileStaffReferralStats.fromJson(rawStats)
                         : null;
+                    final shouldGroupByStatus =
+                        feature.isSubmittable &&
+                        items.any((item) => item.hasStatus);
+                    final statusGroups = shouldGroupByStatus
+                        ? _groupItemsByStatus(items)
+                        : const <_StatusGroup>[];
 
                     return SliverMainAxisGroup(
                       slivers: [
@@ -167,116 +173,104 @@ class MobileFeatureListScreen extends ConsumerWidget {
                           SliverToBoxAdapter(
                             child: _ReferralStatsCard(stats: stats),
                           ),
-                        SliverList.separated(
-                          itemCount: items.length,
-                          separatorBuilder: (_, _) =>
-                              const SizedBox(height: 10),
-                          itemBuilder: (context, index) {
-                            final item = items[index];
-                            return InkWell(
-                              onTap: feature.hasDetail
-                                  ? () => context.push(
-                                      '/mobile-staff/detail/${feature.code}/${item.id}',
-                                      extra: item,
-                                    )
-                                  : null,
-                              borderRadius: BorderRadius.circular(16),
-                              child: Container(
-                                padding: const EdgeInsets.all(16),
+                        if (shouldGroupByStatus)
+                          SliverList.separated(
+                            itemCount: statusGroups.length,
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(height: 10),
+                            itemBuilder: (context, groupIndex) {
+                              final group = statusGroups[groupIndex];
+                              return Container(
                                 decoration: BoxDecoration(
                                   color: AppColors.surface,
                                   borderRadius: BorderRadius.circular(16),
                                   border: Border.all(color: AppColors.divider),
                                 ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      item.title.isNotEmpty
-                                          ? item.title
-                                          : 'Data ${feature.title}',
-                                      style: AppTextStyles.bodyMedium.copyWith(
-                                        fontWeight: FontWeight.w700,
-                                      ),
+                                child: Material(
+                                  color: AppColors.surface,
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: Theme(
+                                    data: Theme.of(context).copyWith(
+                                      dividerColor: Colors.transparent,
                                     ),
-                                    if (item.subtitle.isNotEmpty) ...[
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        item.subtitle,
-                                        style: AppTextStyles.caption.copyWith(
-                                          color: AppColors.textSecondary,
-                                        ),
+                                    child: ExpansionTile(
+                                      initiallyExpanded: group.isPending,
+                                      tilePadding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
                                       ),
-                                    ],
-                                    if (item.hasAmount || item.hasStatus) ...[
-                                      const SizedBox(height: 12),
-                                      Row(
+                                      childrenPadding:
+                                          const EdgeInsets.fromLTRB(
+                                            12,
+                                            0,
+                                            12,
+                                            12,
+                                          ),
+                                      title: Row(
                                         children: [
-                                          if (item.hasAmount)
-                                            Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 10,
-                                                    vertical: 4,
+                                          Expanded(
+                                            child: Text(
+                                              group.label,
+                                              style: AppTextStyles.bodyMedium
+                                                  .copyWith(
+                                                    fontWeight: FontWeight.w700,
                                                   ),
-                                              decoration: BoxDecoration(
-                                                color: color.withValues(
-                                                  alpha: 0.1,
-                                                ),
-                                                borderRadius:
-                                                    BorderRadius.circular(20),
+                                            ),
+                                          ),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 9,
+                                              vertical: 3,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: group.color.withValues(
+                                                alpha: 0.12,
                                               ),
-                                              child: Text(
-                                                item.amount,
-                                                style: TextStyle(
-                                                  color: color,
-                                                  fontSize: 11.5,
-                                                  fontWeight: FontWeight.w700,
-                                                ),
+                                              borderRadius:
+                                                  BorderRadius.circular(20),
+                                            ),
+                                            child: Text(
+                                              '${group.items.length}',
+                                              style: TextStyle(
+                                                color: group.color,
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w700,
                                               ),
                                             ),
-                                          const SizedBox(width: 8),
-                                          if (item.hasStatus)
-                                            Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 10,
-                                                    vertical: 4,
-                                                  ),
-                                              decoration: BoxDecoration(
-                                                color: AppColors.success
-                                                    .withValues(alpha: 0.12),
-                                                borderRadius:
-                                                    BorderRadius.circular(20),
-                                              ),
-                                              child: Text(
-                                                item.status.toUpperCase(),
-                                                style: const TextStyle(
-                                                  color: AppColors.success,
-                                                  fontSize: 10.5,
-                                                  fontWeight: FontWeight.w700,
-                                                ),
-                                              ),
-                                            ),
+                                          ),
                                         ],
                                       ),
-                                    ],
-                                    if (item.hasDate) ...[
-                                      const SizedBox(height: 10),
-                                      Text(
-                                        item.date,
-                                        style: AppTextStyles.caption.copyWith(
-                                          color: AppColors.textHint,
-                                          fontSize: 11,
-                                        ),
-                                      ),
-                                    ],
-                                  ],
+                                      children: [
+                                        for (
+                                          var index = 0;
+                                          index < group.items.length;
+                                          index++
+                                        ) ...[
+                                          if (index > 0)
+                                            const SizedBox(height: 8),
+                                          _FeatureItemCard(
+                                            item: group.items[index],
+                                            feature: feature,
+                                            amountColor: color,
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            );
-                          },
-                        ),
+                              );
+                            },
+                          )
+                        else
+                          SliverList.separated(
+                            itemCount: items.length,
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(height: 10),
+                            itemBuilder: (context, index) => _FeatureItemCard(
+                              item: items[index],
+                              feature: feature,
+                              amountColor: color,
+                            ),
+                          ),
                       ],
                     );
                   },
@@ -340,6 +334,182 @@ class MobileFeatureListScreen extends ConsumerWidget {
       ],
     );
   }
+}
+
+List<_StatusGroup> _groupItemsByStatus(List<MobileFeatureItem> items) {
+  const statuses = <String, (String, Color)>{
+    'pending': ('Menunggu', AppColors.warning),
+    'draft': ('Draft', AppColors.textSecondary),
+    'approved': ('Disetujui', AppColors.success),
+    'rejected': ('Ditolak', AppColors.error),
+    'other': ('Status lainnya', AppColors.textHint),
+  };
+  final groups = <String, List<MobileFeatureItem>>{};
+
+  for (final item in items) {
+    final normalized = item.status.trim().toLowerCase().replaceAll('_', ' ');
+    final key = switch (normalized) {
+      'pending' ||
+      'menunggu' ||
+      'menunggu persetujuan' ||
+      'diajukan' => 'pending',
+      'draft' || 'konsep' => 'draft',
+      'disetujui' || 'approved' || 'setuju' => 'approved',
+      'ditolak' || 'rejected' => 'rejected',
+      _ => 'other',
+    };
+    groups.putIfAbsent(key, () => <MobileFeatureItem>[]).add(item);
+  }
+
+  return [
+    for (final key in statuses.keys)
+      if (groups.containsKey(key))
+        _StatusGroup(
+          label: statuses[key]!.$1,
+          color: statuses[key]!.$2,
+          items: groups[key]!,
+          isPending: key == 'pending',
+        ),
+  ];
+}
+
+class _StatusGroup {
+  final String label;
+  final Color color;
+  final List<MobileFeatureItem> items;
+  final bool isPending;
+
+  const _StatusGroup({
+    required this.label,
+    required this.color,
+    required this.items,
+    required this.isPending,
+  });
+}
+
+class _FeatureItemCard extends StatelessWidget {
+  final MobileFeatureItem item;
+  final MobileFeature feature;
+  final Color amountColor;
+
+  const _FeatureItemCard({
+    required this.item,
+    required this.feature,
+    required this.amountColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final statusColor = _statusColor(item.status);
+    return InkWell(
+      onTap: feature.hasDetail
+          ? () => context.push(
+              '/mobile-staff/detail/${feature.code}/${item.id}',
+              extra: item,
+            )
+          : null,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.divider),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              item.title.isNotEmpty ? item.title : 'Data ${feature.title}',
+              style: AppTextStyles.bodyMedium.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            if (item.subtitle.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                item.subtitle,
+                style: AppTextStyles.caption.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+            if (item.hasAmount || item.hasStatus) ...[
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  if (item.hasAmount)
+                    _ItemBadge(label: item.amount, color: amountColor),
+                  if (item.hasStatus)
+                    _ItemBadge(label: item.status, color: statusColor),
+                ],
+              ),
+            ],
+            if (item.hasDate) ...[
+              const SizedBox(height: 10),
+              Text(
+                item.date,
+                style: AppTextStyles.caption.copyWith(
+                  color: AppColors.textHint,
+                  fontSize: 11,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ItemBadge extends StatelessWidget {
+  final String label;
+  final Color color;
+
+  const _ItemBadge({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label.toUpperCase(),
+        style: TextStyle(
+          color: color,
+          fontSize: 10.5,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+Color _statusColor(String status) {
+  final normalized = status.trim().toLowerCase();
+  if (const {
+    'pending',
+    'menunggu',
+    'menunggu_persetujuan',
+    'diajukan',
+  }.contains(normalized)) {
+    return AppColors.warning;
+  }
+  if (const {'disetujui', 'approved', 'setuju'}.contains(normalized)) {
+    return AppColors.success;
+  }
+  if (const {'ditolak', 'rejected'}.contains(normalized)) {
+    return AppColors.error;
+  }
+  if (const {'draft', 'konsep'}.contains(normalized)) {
+    return AppColors.textSecondary;
+  }
+  return AppColors.textHint;
 }
 
 class _ReferralStatsCard extends StatelessWidget {

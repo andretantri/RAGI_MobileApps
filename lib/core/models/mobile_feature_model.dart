@@ -50,6 +50,7 @@ class MobileFeatureItem {
       title: _pick(json, const [
         'title',
         'nama',
+        'judul_pengajuan',
         'judul',
         'name',
         'course_name',

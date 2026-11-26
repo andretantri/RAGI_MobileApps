@@ -26,8 +26,9 @@ Widget _appWithAuth(Widget child, UserModel user) {
   return ProviderScope(
     overrides: [
       authProvider.overrideWith(
-        (ref) => AuthNotifier()
-          ..state = AuthState(isAuthenticated: true, user: user),
+        (ref) =>
+            AuthNotifier()
+              ..state = AuthState(isAuthenticated: true, user: user),
       ),
     ],
     child: MaterialApp(home: child),
@@ -112,10 +113,7 @@ void main() {
         }).referralCode,
         'REF-SPMB-02',
       );
-      expect(
-        MobileFeatureItem.fromJson({'id': 9}).referralCode,
-        '9',
-      );
+      expect(MobileFeatureItem.fromJson({'id': 9}).referralCode, '9');
     });
   });
 
@@ -129,10 +127,7 @@ void main() {
       });
 
       await tester.pumpWidget(
-        _appWithAuth(
-          const ModuleFeatureHubScreen(moduleCode: 'sikeu'),
-          tendik,
-        ),
+        _appWithAuth(const ModuleFeatureHubScreen(moduleCode: 'sikeu'), tendik),
       );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
@@ -151,10 +146,7 @@ void main() {
       });
 
       await tester.pumpWidget(
-        _appWithAuth(
-          const ModuleFeatureHubScreen(moduleCode: 'lms'),
-          tendik,
-        ),
+        _appWithAuth(const ModuleFeatureHubScreen(moduleCode: 'lms'), tendik),
       );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
@@ -175,10 +167,7 @@ void main() {
       });
 
       await tester.pumpWidget(
-        _appWithAuth(
-          const ModuleFeatureHubScreen(moduleCode: 'lms'),
-          dosen,
-        ),
+        _appWithAuth(const ModuleFeatureHubScreen(moduleCode: 'lms'), dosen),
       );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
@@ -187,7 +176,9 @@ void main() {
       expect(find.text('Pengumuman Kelas'), findsOneWidget);
     });
 
-    testWidgets('Feature list renders empty state without data', (tester) async {
+    testWidgets('Feature list renders empty state without data', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(800, 1600);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
@@ -215,8 +206,62 @@ void main() {
       expect(find.text('Muat Ulang'), findsOneWidget);
     });
 
-    testWidgets('Referral list shows Salin Kode when data exists',
-        (tester) async {
+    testWidgets('submission list groups items by approval status', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(800, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            mobileFeatureItemsProvider.overrideWith((ref, code) async {
+              return [
+                MobileFeatureItem.fromJson({
+                  'id': '1',
+                  'judul_pengajuan': 'Reimbursement perjalanan',
+                  'status_approval': 'pending',
+                }),
+                MobileFeatureItem.fromJson({
+                  'id': '2',
+                  'judul_pengajuan': 'Kas kegiatan',
+                  'status_approval': 'disetujui',
+                }),
+                MobileFeatureItem.fromJson({
+                  'id': '3',
+                  'judul_pengajuan': 'Pembelian alat',
+                  'status_approval': 'ditolak',
+                }),
+              ];
+            }),
+          ],
+          child: const MaterialApp(
+            home: MobileFeatureListScreen(featureCode: 'pengajuan-sikeu'),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('Menunggu'), findsOneWidget);
+      expect(find.text('Disetujui'), findsOneWidget);
+      expect(find.text('Ditolak'), findsOneWidget);
+      expect(find.text('Reimbursement perjalanan'), findsOneWidget);
+      expect(find.text('Kas kegiatan'), findsNothing);
+      expect(find.text('Pembelian alat'), findsNothing);
+
+      await tester.tap(find.text('Disetujui'));
+      await tester.pumpAndSettle();
+      expect(find.text('Kas kegiatan'), findsOneWidget);
+    });
+
+    testWidgets('Referral list shows Salin Kode when data exists', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(800, 1600);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
@@ -302,8 +347,9 @@ void main() {
         ProviderScope(
           overrides: [
             authProvider.overrideWith(
-              (ref) => AuthNotifier()
-                ..state = AuthState(isAuthenticated: true, user: dosen),
+              (ref) =>
+                  AuthNotifier()
+                    ..state = AuthState(isAuthenticated: true, user: dosen),
             ),
             scheduleProvider.overrideWith(
               (ref) => _FakeScheduleNotifier(

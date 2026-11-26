@@ -40,6 +40,7 @@ class _MobileStaffDetailScreenState
     extends ConsumerState<MobileStaffDetailScreen> {
   String? _busy;
   MobileFeatureItem? _lpjResult;
+  MobileFeatureItem? _updatedEfile;
 
   MobileFeature? get _feature =>
       AppMobileFeatures.findByCode(widget.featureCode);
@@ -117,6 +118,191 @@ class _MobileStaffDetailScreenState
       _showMessage(
         'Gagal membuat tautan unduh. Periksa koneksi lalu coba lagi.',
       );
+    } finally {
+      if (mounted) setState(() => _busy = null);
+    }
+  }
+
+  Future<void> _editEfile(
+    MobileFeatureItem item,
+    String? detailEndpoint,
+  ) async {
+    final nameController = TextEditingController(text: item.title);
+    final currentJenis = _raw(item, ['jenis_dokumen']);
+    String selectedJenis = mobileEfileJenisDokumen.contains(currentJenis)
+        ? currentJenis
+        : mobileEfileJenisDokumen.first;
+    PlatformFile? pickedFile;
+    final formKey = GlobalKey<FormState>();
+
+    final saved = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                20,
+                20,
+                MediaQuery.of(ctx).viewInsets.bottom + 24,
+              ),
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'Edit Dokumen E-File',
+                      style: AppTextStyles.headlineSmall.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    TextFormField(
+                      controller: nameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Nama dokumen *',
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Nama dokumen wajib diisi.'
+                          : null,
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      initialValue: selectedJenis,
+                      decoration: const InputDecoration(
+                        labelText: 'Jenis dokumen *',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: [
+                        for (final jenis in mobileEfileJenisDokumen)
+                          DropdownMenuItem(value: jenis, child: Text(jenis)),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) {
+                          setModalState(() => selectedJenis = val);
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      onPressed: () async {
+                        final res = await FilePicker.platform.pickFiles(
+                          type: FileType.custom,
+                          allowedExtensions: const ['pdf', 'jpg', 'jpeg', 'png'],
+                        );
+                        if (res != null && res.files.isNotEmpty) {
+                          setModalState(() => pickedFile = res.files.first);
+                        }
+                      },
+                      icon: const Icon(Icons.attach_file_rounded, size: 18),
+                      label: Text(
+                        pickedFile == null
+                            ? 'Ganti berkas (opsional: PDF/JPG/PNG)'
+                            : 'Berkas baru: ${pickedFile!.name}',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    FilledButton(
+                      onPressed: () {
+                        if (formKey.currentState?.validate() ?? false) {
+                          Navigator.of(ctx).pop(true);
+                        }
+                      },
+                      child: const Text('Simpan Perubahan'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    final updatedName = nameController.text.trim();
+    nameController.dispose();
+    if (saved != true || !mounted) return;
+
+    setState(() => _busy = 'edit_efile');
+    try {
+      final updated = await MobileStaffService.updateEfile(
+        id: widget.id,
+        namaDokumen: updatedName,
+        jenisDokumen: selectedJenis,
+        file: pickedFile?.xFile,
+      );
+      ref.invalidate(mobileFeatureItemsProvider(widget.featureCode));
+      final listEndpoint = _feature?.endpoint;
+      if (listEndpoint != null) {
+        ref.invalidate(mobileStaffPageProvider(listEndpoint));
+      }
+      if (detailEndpoint != null) {
+        ref.invalidate(mobileStaffDetailProvider(detailEndpoint));
+      }
+      if (!mounted) return;
+      setState(() => _updatedEfile = updated);
+      _showMessage('Dokumen e-file berhasil diperbarui.');
+    } on ApiException catch (e) {
+      _showMessage(e.message);
+    } catch (_) {
+      _showMessage('Gagal memperbarui dokumen. Periksa koneksi lalu coba lagi.');
+    } finally {
+      if (mounted) setState(() => _busy = null);
+    }
+  }
+
+  Future<void> _deleteEfile() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Hapus Dokumen E-File?'),
+        content: const Text(
+          'Berkas dokumen akan dihapus permanen dari arsip digital Anda.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _busy = 'delete_efile');
+    try {
+      await MobileStaffService.deleteEfile(widget.id);
+      ref.invalidate(mobileFeatureItemsProvider(widget.featureCode));
+      final listEndpoint = _feature?.endpoint;
+      if (listEndpoint != null) {
+        ref.invalidate(mobileStaffPageProvider(listEndpoint));
+      }
+      if (!mounted) return;
+      _showMessage('Dokumen e-file berhasil dihapus.');
+      if (context.canPop()) {
+        context.pop();
+      } else {
+        context.go('/features/${widget.featureCode}');
+      }
+    } on ApiException catch (e) {
+      _showMessage(e.message);
+    } catch (_) {
+      _showMessage('Gagal menghapus dokumen. Periksa koneksi lalu coba lagi.');
     } finally {
       if (mounted) setState(() => _busy = null);
     }
@@ -217,7 +403,10 @@ class _MobileStaffDetailScreenState
 
     final payroll = payrollAsync?.valueOrNull;
     final item =
-        payroll?.item ?? widget.initialItem ?? detailAsync?.valueOrNull;
+        _updatedEfile ??
+        payroll?.item ??
+        detailAsync?.valueOrNull ??
+        widget.initialItem;
     if (item == null) {
       return Scaffold(
         backgroundColor: AppColors.background,
@@ -388,6 +577,60 @@ class _MobileStaffDetailScreenState
                         backgroundColor: color,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _busy == null
+                                ? () => _editEfile(
+                                    item,
+                                    endpoint == null
+                                        ? null
+                                        : MobileFeature.resolveId(
+                                            endpoint,
+                                            widget.id,
+                                          ),
+                                  )
+                                : null,
+                            icon: _busy == 'edit_efile'
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.edit_outlined, size: 18),
+                            label: const Text('Edit Berkas'),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _busy == null ? _deleteEfile : null,
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.error,
+                              side: const BorderSide(color: AppColors.error),
+                            ),
+                            icon: _busy == 'delete_efile'
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: AppColors.error,
+                                    ),
+                                  )
+                                : const Icon(
+                                    Icons.delete_outline_rounded,
+                                    size: 18,
+                                  ),
+                            label: const Text('Hapus'),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                   if (feature?.code == 'surat-tugas') ...[

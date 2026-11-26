@@ -2,7 +2,7 @@ name: myinu_staff
 description: "myInU Staff — Aplikasi mobile untuk Dosen & Staff kampus"
 publish_to: 'none'
 
-version: 1.1.5+35
+version: 1.1.6+36
 
 environment:
   sdk: ^3.12.2

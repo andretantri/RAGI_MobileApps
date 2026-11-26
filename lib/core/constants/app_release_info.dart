@@ -23,8 +23,8 @@ class AppReleaseEntry {
 class AppReleaseInfo {
   AppReleaseInfo._();
 
-  static const String version = '1.1.5';
-  static const int buildNumber = 35;
+  static const String version = '1.1.6';
+  static const int buildNumber = 36;
 
   static const String loginLabel = 'Versi $version • Build $buildNumber';
   static const String splashLabel =
@@ -36,6 +36,15 @@ class AppReleaseInfo {
   static const String buildLabel = 'Build $buildNumber (Release)';
 
   static const List<AppReleaseEntry> changelog = [
+    AppReleaseEntry(
+      version: '1.1.6',
+      buildNumber: 36,
+      date: '26 Nov 2026',
+      title: 'Edit & Hapus Berkas Dokumen E-File',
+      highlights: [
+        'Menambahkan fitur Edit Berkas (ubah nama/jenis dokumen atau ganti file) dan Hapus dokumen pada halaman detail E-File.',
+      ],
+    ),
     AppReleaseEntry(
       version: '1.1.5',
       buildNumber: 35,
