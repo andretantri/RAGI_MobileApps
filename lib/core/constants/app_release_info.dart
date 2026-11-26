@@ -23,8 +23,8 @@ class AppReleaseEntry {
 class AppReleaseInfo {
   AppReleaseInfo._();
 
-  static const String version = '1.1.1';
-  static const int buildNumber = 31;
+  static const String version = '1.1.2';
+  static const int buildNumber = 32;
 
   static const String loginLabel = 'Versi $version • Build $buildNumber';
   static const String footerLabel =
@@ -34,6 +34,17 @@ class AppReleaseInfo {
   static const String buildLabel = 'Build $buildNumber (Release)';
 
   static const List<AppReleaseEntry> changelog = [
+    AppReleaseEntry(
+      version: '1.1.2',
+      buildNumber: 32,
+      date: '26 Nov 2026',
+      title: 'Widget Home Screen Adaptif & Log Update In-App',
+      highlights: [
+        'Penambahan Widget Home Screen Android adaptif (MyIn-U Staff: Jadwal Mengajar untuk Dosen & Pengumuman Kampus untuk Pegawai/Tendik) dengan desain gradien biru senada aplikasi.',
+        'Penambahan pilihan Widget khusus Pengumuman Kampus MyIn-U di layar utama perangkat.',
+        'Penambahan tab Log Update pada menu Tentang Aplikasi serta ringkasan pembaruan di Informasi Sistem.',
+      ],
+    ),
     AppReleaseEntry(
       version: '1.1.1',
       buildNumber: 31,
