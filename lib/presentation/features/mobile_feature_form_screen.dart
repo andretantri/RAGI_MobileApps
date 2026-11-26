@@ -59,7 +59,6 @@ class _MobileFeatureFormScreenState
         'nama_bank_penerima': '',
         'nomor_rekening_penerima': '',
         'nama_rekening_penerima': '',
-        'unit_kas_id': '',
       },
       MobileFeatureFormType.tiketSinapra => {
         'judul': '',
@@ -429,7 +428,38 @@ class _MobileFeatureFormScreenState
                           'nama_rekening_penerima',
                           'Nama pemegang rekening',
                         ),
-                        _field('unit_kas_id', 'Unit kas ID', numbersOnly: true),
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.06),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: AppColors.primary.withValues(alpha: 0.2),
+                            ),
+                          ),
+                          child: const Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(
+                                Icons.info_outline_rounded,
+                                size: 18,
+                                color: AppColors.primary,
+                              ),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Sumber unit kas dan pencairan dana akan di-plotting otomatis oleh Bagian Keuangan sebelum persetujuan Direktur.',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.textSecondary,
+                                    height: 1.4,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                         _attachmentCard(pdfOnly: false),
                       ],
                       if (feature.formType ==

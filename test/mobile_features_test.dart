@@ -248,7 +248,7 @@ void main() {
       expect(find.text('Referral SPMB'), findsOneWidget);
       expect(find.text('Mahasiswa Binaan'), findsOneWidget);
       expect(find.byTooltip('Salin Kode'), findsOneWidget);
-      expect(find.text('Buat Link Referral'), findsOneWidget);
+      expect(find.text('Buat Link Referral'), findsNothing);
     });
 
     testWidgets('Feature list renders API error with retry', (tester) async {

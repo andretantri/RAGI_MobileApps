@@ -649,18 +649,20 @@ class _BigModuleCard extends StatelessWidget {
                 ]
               : null,
         ),
-        child: Stack(
-          children: [
-            // Background watermark icon
-            Positioned(
-              bottom: -6,
-              right: -6,
-              child: Icon(
-                module.icon,
-                size: 50,
-                color: module.color.withValues(alpha: 0.07),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(15),
+          child: Stack(
+            children: [
+              // Background watermark icon (terklip rapi di dalam card)
+              Positioned(
+                bottom: -4,
+                right: -4,
+                child: Icon(
+                  module.icon,
+                  size: 46,
+                  color: module.color.withValues(alpha: 0.07),
+                ),
               ),
-            ),
 
             Padding(
               padding: const EdgeInsets.all(12),
@@ -725,6 +727,7 @@ class _BigModuleCard extends StatelessWidget {
               ),
             ),
           ],
+        ),
         ),
       ),
     );

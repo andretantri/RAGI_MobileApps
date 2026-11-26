@@ -25,17 +25,7 @@ void main() {
     expect(find.byIcon(Icons.school_rounded), findsOneWidget);
     expect(find.byIcon(Icons.account_balance_rounded), findsOneWidget);
 
-    // Check camera icon badge on avatar
-    expect(find.byIcon(Icons.camera_alt_rounded), findsOneWidget);
-
-    // Tap on avatar to open bottom sheet
-    await tester.tap(find.byIcon(Icons.camera_alt_rounded));
-    await tester.pump(const Duration(milliseconds: 500));
-
-    // Verify modal bottom sheet options
-    expect(find.text('Foto Profil Pengguna'), findsOneWidget);
-    expect(find.text('Ambil Foto Kamera'), findsOneWidget);
-    expect(find.text('Pilih dari Galeri'), findsOneWidget);
-    expect(find.text('Buka Profil Lengkap'), findsOneWidget);
+    // Tidak ada ikon kamera di avatar beranda (pindah ke halaman Profil)
+    expect(find.byIcon(Icons.camera_alt_rounded), findsNothing);
   });
 }

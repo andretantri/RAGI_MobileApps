@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:image_picker/image_picker.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/providers/attendance_provider.dart';
@@ -289,62 +288,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ),
                     ),
                     const SizedBox(width: 14),
-                    // Avatar profil dengan kamera selector & indikator aktif
+                    // Avatar profil — ketuk untuk membuka halaman Profil
                     GestureDetector(
-                      onTap: () => _showAvatarOptions(context, user),
-                      child: Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          Container(
-                            width: 64,
-                            height: 64,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: Colors.white.withValues(alpha: 0.22),
-                              border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.65),
-                                width: 2.0,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.16),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 3),
-                                ),
-                              ],
-                            ),
-                            child: ClipOval(
-                              child: _buildHomeAvatar(user, initial),
-                            ),
+                      onTap: () => GoRouter.maybeOf(context)?.go('/profile'),
+                      child: Container(
+                        width: 64,
+                        height: 64,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withValues(alpha: 0.22),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.65),
+                            width: 2.0,
                           ),
-                          // Badge kamera di kanan bawah avatar
-                          Positioned(
-                            bottom: -1,
-                            right: -1,
-                            child: Container(
-                              padding: const EdgeInsets.all(4.5),
-                              decoration: BoxDecoration(
-                                color: AppColors.primaryLight,
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: Colors.white,
-                                  width: 2.0,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.22),
-                                    blurRadius: 4,
-                                  ),
-                                ],
-                              ),
-                              child: const Icon(
-                                Icons.camera_alt_rounded,
-                                size: 12,
-                                color: Colors.white,
-                              ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.16),
+                              blurRadius: 10,
+                              offset: const Offset(0, 3),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
+                        child: ClipOval(
+                          child: _buildHomeAvatar(user, initial),
+                        ),
                       ),
                     ),
                   ],
@@ -352,172 +319,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  /// Pilih foto avatar dari Galeri atau Kamera langsung dari Header
-  Future<void> _pickAvatarImage(ImageSource source) async {
-    try {
-      final picker = ImagePicker();
-      final XFile? file = await picker.pickImage(
-        source: source,
-        maxWidth: 1024,
-        maxHeight: 1024,
-        imageQuality: 85,
-      );
-
-      if (file == null) return;
-
-      final bytes = await file.readAsBytes();
-      final base64String = base64Encode(bytes);
-
-      final updated = await ref.read(authProvider.notifier).updateAvatar(
-            avatarBase64: base64String,
-          );
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: updated ? AppColors.primaryDark : AppColors.error,
-            behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle_rounded,
-                    color: Colors.white, size: 20),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    !updated
-                        ? 'Foto tersimpan di perangkat, tetapi gagal disinkronkan ke server.'
-                        : (source == ImageSource.camera
-                            ? 'Foto profil dari kamera berhasil diperbarui.'
-                            : 'Foto profil dari galeri berhasil diperbarui.'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            content: Text('Gagal memilih foto: $e'),
-          ),
-        );
-      }
-    }
-  }
-
-  /// Dialog modal pemilihan sumber avatar
-  void _showAvatarOptions(BuildContext context, UserModel? user) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Foto Profil Pengguna',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1E293B),
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Pilih sumber foto atau buka profil untuk informasi lengkap',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Colors.grey.shade600,
-                ),
-              ),
-              const SizedBox(height: 16),
-              ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEFF6FF),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(Icons.camera_alt_rounded,
-                      color: Color(0xFF0D47A1)),
-                ),
-                title: const Text('Ambil Foto Kamera',
-                    style: TextStyle(fontWeight: FontWeight.w600)),
-                subtitle: const Text('Gunakan kamera langsung untuk swafoto'),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _pickAvatarImage(ImageSource.camera);
-                },
-              ),
-              ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF0FDF4),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(Icons.photo_library_rounded,
-                      color: Color(0xFF16A34A)),
-                ),
-                title: const Text('Pilih dari Galeri',
-                    style: TextStyle(fontWeight: FontWeight.w600)),
-                subtitle: const Text('Pilih gambar yang tersimpan di perangkat'),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _pickAvatarImage(ImageSource.gallery);
-                },
-              ),
-              ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(Icons.person_outline_rounded,
-                      color: Color(0xFF64748B)),
-                ),
-                title: const Text('Buka Profil Lengkap',
-                    style: TextStyle(fontWeight: FontWeight.w600)),
-                subtitle: const Text('Lihat detail akun dan pengaturan data diri'),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  context.go('/profile');
-                },
-              ),
-            ],
-          ),
         ),
       ),
     );

@@ -44,7 +44,6 @@ class MobileFeatureSubmission {
         'nama_bank_penerima': _text('nama_bank_penerima'),
         'nomor_rekening_penerima': _text('nomor_rekening_penerima'),
         'nama_rekening_penerima': _text('nama_rekening_penerima'),
-        'unit_kas_id': _int('unit_kas_id'),
       },
       MobileFeatureFormType.tiketSinapra => {
         'judul': _text('judul'),

@@ -1,5 +1,8 @@
 import 'dart:convert';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -252,8 +255,14 @@ class ProfileScreen extends ConsumerWidget {
 
       if (file == null) return;
 
-      final bytes = await file.readAsBytes();
-      final base64String = base64Encode(bytes);
+      final rawBytes = await file.readAsBytes();
+      if (!context.mounted) return;
+
+      // Beri pengguna kontrol untuk mengatur tata letak & zoom sebelum dipakai
+      final croppedBytes = await _showPhotoCropDialog(context, rawBytes);
+      if (croppedBytes == null) return;
+
+      final base64String = base64Encode(croppedBytes);
 
       final updated = await ref.read(authProvider.notifier).updateAvatar(
             avatarBase64: base64String,
@@ -298,6 +307,170 @@ class ProfileScreen extends ConsumerWidget {
         );
       }
     }
+  }
+
+  Future<Uint8List?> _showPhotoCropDialog(
+      BuildContext context, Uint8List imageBytes) async {
+    final cropKey = GlobalKey();
+    final transformController = TransformationController();
+    double currentScale = 1.0;
+    bool isExporting = false;
+
+    return showDialog<Uint8List>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dlgCtx) => StatefulBuilder(
+        builder: (ctx, setDlgState) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(22),
+          ),
+          titlePadding: const EdgeInsets.fromLTRB(20, 18, 20, 6),
+          contentPadding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+          title: const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Atur Posisi & Zoom Foto',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+              ),
+              SizedBox(height: 3),
+              Text(
+                'Geser atau cubit layar untuk menyesuaikan foto profil Anda.',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 240,
+                height: 240,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0xFF0F172A),
+                  border: Border.all(
+                    color: AppColors.primary,
+                    width: 2.5,
+                  ),
+                ),
+                child: ClipOval(
+                  child: RepaintBoundary(
+                    key: cropKey,
+                    child: InteractiveViewer(
+                      transformationController: transformController,
+                      minScale: 1.0,
+                      maxScale: 4.0,
+                      boundaryMargin: const EdgeInsets.all(140),
+                      onInteractionEnd: (_) {
+                        final s = transformController.value.getMaxScaleOnAxis();
+                        setDlgState(() {
+                          currentScale = s.clamp(1.0, 4.0);
+                        });
+                      },
+                      child: Image.memory(
+                        imageBytes,
+                        width: 240,
+                        height: 240,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  const Icon(Icons.zoom_out_rounded,
+                      size: 18, color: AppColors.textSecondary),
+                  Expanded(
+                    child: Slider(
+                      value: currentScale.clamp(1.0, 4.0),
+                      min: 1.0,
+                      max: 4.0,
+                      activeColor: AppColors.primary,
+                      onChanged: (val) {
+                        setDlgState(() {
+                          currentScale = val;
+                          final matrix = transformController.value.clone();
+                          final cur = matrix.getMaxScaleOnAxis();
+                          if (cur > 0) {
+                            final factor = val / cur;
+                            matrix.scaleByDouble(factor, factor, 1.0, 1.0);
+                            transformController.value = matrix;
+                          }
+                        });
+                      },
+                    ),
+                  ),
+                  const Icon(Icons.zoom_in_rounded,
+                      size: 18, color: AppColors.textSecondary),
+                ],
+              ),
+              TextButton.icon(
+                onPressed: () {
+                  setDlgState(() {
+                    currentScale = 1.0;
+                    transformController.value = Matrix4.identity();
+                  });
+                },
+                icon: const Icon(Icons.refresh_rounded, size: 16),
+                label: const Text('Reset Posisi', style: TextStyle(fontSize: 12)),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: isExporting ? null : () => Navigator.pop(dlgCtx, null),
+              child: const Text('Batal'),
+            ),
+            ElevatedButton.icon(
+              onPressed: isExporting
+                  ? null
+                  : () async {
+                      setDlgState(() => isExporting = true);
+                      try {
+                        final boundary = cropKey.currentContext?.findRenderObject()
+                            as RenderRepaintBoundary?;
+                        if (boundary != null) {
+                          final image = await boundary.toImage(pixelRatio: 2.0);
+                          final byteData = await image.toByteData(
+                              format: ui.ImageByteFormat.png);
+                          if (byteData != null && dlgCtx.mounted) {
+                            Navigator.pop(
+                                dlgCtx, byteData.buffer.asUint8List());
+                            return;
+                          }
+                        }
+                      } catch (_) {}
+                      if (dlgCtx.mounted) {
+                        Navigator.pop(dlgCtx, imageBytes);
+                      }
+                    },
+              icon: isExporting
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.check_rounded, size: 16),
+              label: Text(isExporting ? 'Memproses...' : 'Gunakan Foto'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   /// Modal Ganti Foto Profil (Galeri atau Kamera) & Sinkronisasi ke RAG Backend

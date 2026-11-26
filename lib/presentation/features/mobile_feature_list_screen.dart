@@ -316,7 +316,9 @@ class MobileFeatureListScreen extends ConsumerWidget {
       );
     }
 
-    if (feature != null && feature.isSubmittable) {
+    if (feature != null &&
+        feature.isSubmittable &&
+        featureCode != 'referral-spmb') {
       actions.add(
         FloatingActionButton.extended(
           heroTag: 'submit-$featureCode',

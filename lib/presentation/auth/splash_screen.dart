@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/constants/app_release_info.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/providers/auth_provider.dart';
@@ -178,7 +179,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                   _AnimatedProgressBar(progress: progress),
                   const SizedBox(height: 16),
                   Text(
-                    'Politeknik Indonusa • Build v1.0',
+                    AppReleaseInfo.splashLabel,
                     style: AppTextStyles.caption.copyWith(color: Colors.white54),
                   ),
                 ],

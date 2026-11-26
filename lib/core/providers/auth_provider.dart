@@ -203,11 +203,13 @@ class UserModel {
         employee['face_enrolled_at'] != null;
     final faceEnrolledAt = employee['face_enrolled_at']?.toString();
 
-    final avatarUrl = cachedAvatarUrl ??
-        user['avatar_url']?.toString() ??
+    final serverAvatarUrl = user['avatar_url']?.toString() ??
         user['avatar']?.toString() ??
         employee['photo_url']?.toString() ??
         employee['foto']?.toString();
+    final avatarUrl = (serverAvatarUrl != null && serverAvatarUrl.isNotEmpty)
+        ? serverAvatarUrl
+        : cachedAvatarUrl;
 
     return UserModel(
       id: user['id'] is int
@@ -545,12 +547,23 @@ class AuthNotifier extends StateNotifier<AuthState> {
       return false;
     }
 
+    final responseData = res.data?['data'] as Map<String, dynamic>?;
+    final serverAvatarUrl = responseData?['avatar_url']?.toString();
+    if (!removeAvatar && serverAvatarUrl != null && serverAvatarUrl.isNotEmpty) {
+      state = state.copyWith(
+        user: updatedUser.copyWith(avatarUrl: serverAvatarUrl),
+      );
+    }
+
     final prefs = await SharedPreferences.getInstance();
     if (removeAvatar) {
       await prefs.remove('user_avatar_base64');
       await prefs.remove('user_avatar_url');
     } else {
       await prefs.setString('user_avatar_base64', avatarBase64!);
+      if (serverAvatarUrl != null && serverAvatarUrl.isNotEmpty) {
+        await prefs.setString('user_avatar_url', serverAvatarUrl);
+      }
     }
     return true;
   }

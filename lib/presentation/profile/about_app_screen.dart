@@ -250,6 +250,7 @@ class _AboutAppScreenState extends State<AboutAppScreen>
                     Container(
                       width: 50,
                       height: 50,
+                      padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(14),
@@ -261,14 +262,19 @@ class _AboutAppScreenState extends State<AboutAppScreen>
                           ),
                         ],
                       ),
-                      child: const Center(
-                        child: Text(
-                          'mInU',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.primary,
-                            letterSpacing: -0.5,
+                      child: Image.asset(
+                        'assets/images/logo.png',
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) =>
+                            const Center(
+                          child: Text(
+                            'mInU',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w900,
+                              color: AppColors.primary,
+                              letterSpacing: -0.5,
+                            ),
                           ),
                         ),
                       ),
